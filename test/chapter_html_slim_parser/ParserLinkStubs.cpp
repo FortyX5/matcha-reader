@@ -39,9 +39,18 @@ TextBlock::TextBlock(const std::vector<std::string>& words, const std::vector<in
     : blockStyle(blockStyle), rubyTexts(std::move(rubyTexts)), linkSpans(std::move(linkSpans)) {
   stubLineWords.push_back(words);
   stubLineXPos.push_back(wordXpos);
+  // Mirror the real constructor's invariant: a block never holds an all-empty rubyTexts, so a
+  // ruby-less line reports none. Tests assert on getRubyTexts(), so the double has to agree.
+  if (!hasRuby()) this->rubyTexts = std::vector<std::string>{};
 }
 
-bool TextBlock::hasRuby() const { return false; }
+// Same rule the real one applies: ruby is present only if some entry is non-empty.
+bool TextBlock::hasRuby() const {
+  for (const auto& rt : rubyTexts) {
+    if (!rt.empty()) return true;
+  }
+  return false;
+}
 
 ImageBlock::ImageBlock(const std::string& imagePath, const std::string& srcPath, int16_t width, int16_t height)
     : imagePath(imagePath), srcPath(srcPath), width(width), height(height) {}
@@ -52,15 +61,15 @@ bool ImageToFramebufferDecoder::validateAndStoreDimensions(int64_t, int64_t, Ima
   return false;
 }
 
-void PageLine::render(GfxRenderer&, int, int, int) {}
-bool PageLine::serialize(HalFile&) { return false; }
+void ImageBlock::render(GfxRenderer&, int, int) {}
+void ImageBlock::renderPlaceholder(GfxRenderer&, int, int) const {}
+bool ImageBlock::needsDecode() const { return false; }
+bool ImageBlock::serialize(HalFile&) { return false; }
+std::unique_ptr<ImageBlock> ImageBlock::deserialize(HalFile&) { return nullptr; }
 
-void PageImage::render(GfxRenderer&, int, int, int) {}
-void PageImage::renderPlaceholder(GfxRenderer&, int, int) const {}
-bool PageImage::serialize(HalFile&) { return false; }
-
-void PageHorizontalRule::render(GfxRenderer&, int, int, int) {}
-bool PageHorizontalRule::serialize(HalFile&) { return false; }
-
-void PageBox::render(GfxRenderer&, int, int, int) {}
-bool PageBox::serialize(HalFile&) { return false; }
+// Page.cpp is linked for real, and its element renderers call into TextBlock. The block itself
+// stays a double (see stubLineWords above), so these three round out its link surface; none of
+// them is what the parser tests assert on.
+void TextBlock::render(const GfxRenderer&, int, int, int, bool) const {}
+bool TextBlock::serialize(HalFile&) const { return false; }
+std::unique_ptr<TextBlock> TextBlock::deserialize(HalFile&) { return nullptr; }

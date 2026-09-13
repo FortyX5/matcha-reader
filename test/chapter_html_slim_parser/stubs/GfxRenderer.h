@@ -5,6 +5,10 @@
 #include <deque>
 #include <string>
 
+namespace BidiUtils {
+enum class BidiBaseDir : signed char { AUTO = -1, LTR = 0, RTL = 1 };
+}
+
 class GfxRenderer {
  public:
   class FrameBufferLoan {
@@ -12,6 +16,26 @@ class GfxRenderer {
     explicit FrameBufferLoan(GfxRenderer&) {}
   };
 
+  bool isFontCacheScanning() const { return false; }
+  void drawLine(int, int, int, int, int, bool) const {}
+  // Filled panel backgrounds (PageBox with filled=true); drawing is not what these tests assert.
+  void fillRect(int, int, int, int, bool) const {}
+  // Signatures mirror the real renderer, trailing defaults included: TextBlock::render() calls
+  // these with and without letterSpacing, and the scaled variants carry the fork's per-word
+  // scaling (ruby and mixed-size runs).
+  void drawText(int, int, int, const char*, bool = true, EpdFontFamily::Style = EpdFontFamily::REGULAR,
+                BidiUtils::BidiBaseDir = BidiUtils::BidiBaseDir::AUTO, int8_t = 0) const {}
+  void drawTextScaled(int, int, int, const char*, uint16_t, bool = true, EpdFontFamily::Style = EpdFontFamily::REGULAR,
+                      BidiUtils::BidiBaseDir = BidiUtils::BidiBaseDir::AUTO, int8_t = 0) const {}
+  int getTextWidth(int font, const char* text, EpdFontFamily::Style style,
+                   BidiUtils::BidiBaseDir = BidiUtils::BidiBaseDir::AUTO) const {
+    return getTextAdvanceX(font, text, style);
+  }
+  int getTextWidthScaled(int font, const char* text, uint16_t scale,
+                         EpdFontFamily::Style style = EpdFontFamily::REGULAR,
+                         BidiUtils::BidiBaseDir = BidiUtils::BidiBaseDir::AUTO, int8_t = 0) const {
+    return getTextAdvanceX(font, text, style) * scale / 256;
+  }
   int getScreenWidth() const { return 480; }
   int getScreenHeight() const { return 800; }
   // Mirrors the real renderer: the line-spacing factor scales the leading.
