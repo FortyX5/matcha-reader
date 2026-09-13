@@ -715,6 +715,15 @@ static void renderCharAtScale(const GfxRenderer& renderer, const GfxRenderer::Re
   // would divide by zero here even though the loops below would not run.
   const int32_t stepFP = interpolate ? (256 << 16) / scale : 0;  // source texels per dst pixel, 16.16
 
+  // A 2-bit glyph's lightest level is the outline's antialias fringe. Reading it as solid ink
+  // (what binarize does) is right at text size, where a whole thin stroke can be drawn at that
+  // level and treating it as partial coverage would erase the stroke. From 2x up every stroke is
+  // several pixels wide and that trade reverses: promoting the fringe to solid fattens the letter
+  // by a source texel all round, which rounds off corners and closes up counters -- an enlarged
+  // initial goes blobby. Read the real coverage there so the half-coverage threshold below lands
+  // on the outline instead of outside it.
+  const bool crispEnlarge = fontData->is2Bit && scale >= 2 * 256;
+
   for (int dstY = 0; dstY < height; ++dstY) {
     // Destination pixel CENTRE mapped back into the source, less the half texel that puts texel
     // centres on integers. Off-by-a-half here shifts every glyph a subpixel and thickens one side.
@@ -723,7 +732,7 @@ static void renderCharAtScale(const GfxRenderer& renderer, const GfxRenderer::Re
     const int srcY = interpolate ? 0 : std::min<int>(glyph->height - 1, (dstY * 256) / scale);
     for (int dstX = 0; dstX < width; ++dstX) {
       // The BW pass reads the glyph as a solid shape; the grayscale passes need the real tones.
-      const bool binarize = renderMode == GfxRenderer::BW;
+      const bool binarize = renderMode == GfxRenderer::BW && !crispEnlarge;
       uint8_t ink;
       if (interpolate) {
         const int32_t sxFP = ((2 * dstX + 1) * stepFP) / 2 - 32768;
@@ -2635,6 +2644,18 @@ int GfxRenderer::getFontAscenderSize(const int fontId) const {
   return fontIt->second.getData(EpdFontFamily::REGULAR)->ascender;
 }
 
+int GfxRenderer::getFontInkHeight(const int fontId) const {
+  const auto fontIt = fontMap.find(fontId);
+  if (fontIt == fontMap.end()) {
+    LOG_ERR("GFX", "Font %d not found", fontId);
+    return 0;
+  }
+  const auto* data = fontIt->second.getData(EpdFontFamily::REGULAR);
+  // descender is stored as a signed distance below the baseline; take its magnitude either way.
+  const int descender = data->descender;
+  return data->ascender + (descender < 0 ? -descender : descender);
+}
+
 int GfxRenderer::getLineHeight(const int fontId) const {
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) {
@@ -2810,7 +2831,10 @@ bool GfxRenderer::drawCharUpscaled(const int fontId, const uint32_t cp, const in
   const int dstW = srcW * scale;
   const int dstH = srcH * scale;
   const int32_t stepFP = 65536 / scale;  // source texels per destination pixel, 16.16
-  const bool binarize = renderMode == BW;
+  // See renderCharAtScale: from 2x up, the antialias fringe of a 2-bit glyph is coverage to
+  // interpolate, not ink to replicate. Reading it as solid is what makes an enlarged letter look
+  // heavy and swallows its counters.
+  const bool binarize = renderMode == BW && !(fontData->is2Bit && scale >= 2);
 
   for (int dstY = 0; dstY < dstH; dstY++) {
     // Destination pixel CENTRE mapped back into the source, less the half texel that puts texel

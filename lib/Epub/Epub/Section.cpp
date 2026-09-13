@@ -247,7 +247,11 @@ namespace {
 //      emitted with (reader line spacing and the block's CSS line-height) instead of the raw
 //      font leading. Tighter leading used to make the letter taller than the column it reserved,
 //      so it ran through the first full-width line below it. The framing is unchanged.
-constexpr uint8_t SECTION_FILE_VERSION = 92;
+// v93: a line's advance is floored at the ink its glyphs occupy plus a minimum gap, so a face
+//      whose advanceY is under its own ascender + descender no longer lets a descender meet the
+//      ascender below it. Line heights are computed at layout time and stored, so cached geometry
+//      must be rebuilt. The framing is unchanged.
+constexpr uint8_t SECTION_FILE_VERSION = 93;
 // Written into the version field while a build is in progress; patched to
 // SECTION_FILE_VERSION only when the build is finalized. An abandoned /
 // crash-interrupted .bin therefore carries version 0, which loadSectionFile rejects
