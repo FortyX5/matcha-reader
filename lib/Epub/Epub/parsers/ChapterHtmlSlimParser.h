@@ -72,8 +72,10 @@ class ChapterHtmlSlimParser {
   // inverted block gets a filled PageBox pushed just before it, so the panel survives a page break
   // and needs no knowledge of the block's total height. Only the block's own padding needs
   // stitching on: the top pad onto the first line, the bottom pad onto the last.
-  int16_t pendingPanelTopPad = 0;                   // consumed by the first panel line of the block
-  std::shared_ptr<PageBox> lastPanelBox = nullptr;  // grown by the bottom pad once the block closes
+  int16_t pendingPanelTopPad = 0;  // consumed by the first panel line of the block
+  // Non-owning back-reference: the Page owns its elements (unique_ptr since upstream #3518).
+  // Only valid until the page is completed, which is also the last moment it is used.
+  PageBox* lastPanelBox = nullptr;  // grown by the bottom pad once the block closes
   void emitInvertedPanel(const BlockStyle& blockStyle, int16_t lineHeight);
 
   // --- CSS page-break control (see BlockStyle::pageBreaks) -------------------------------------
@@ -99,7 +101,7 @@ class ChapterHtmlSlimParser {
   int16_t keepWithNextReserve = 0;  // room to leave after the block for `after: avoid`
   // Buffered (line, first-word visible offset) pairs; the offset replays through
   // addLineToPage so content positions survive the keep-together delay.
-  std::vector<std::pair<std::shared_ptr<TextBlock>, uint32_t>> keepBuffer;
+  std::vector<std::pair<std::unique_ptr<TextBlock>, uint32_t>> keepBuffer;
   void breakPage();
   void beginKeepTogether(const BlockStyle& blockStyle);
   void finishKeepTogether();
@@ -200,7 +202,7 @@ class ChapterHtmlSlimParser {
   uint16_t tableRowsSpannedRemaining = 0;
   size_t tableCellTextBytes = 0;
   std::vector<std::unique_ptr<ParsedText>> tableRowCells;
-  std::array<std::vector<std::shared_ptr<TextBlock>>, MAX_GRID_TABLE_COLUMNS> tableCellLines;
+  std::array<std::vector<std::unique_ptr<TextBlock>>, MAX_GRID_TABLE_COLUMNS> tableCellLines;
   std::vector<uint32_t> tableLineVisibleOffsets;
   bool listItemBulletOnly = false;  // true when currentTextBlock has only the <li> bullet
 
@@ -357,7 +359,7 @@ class ChapterHtmlSlimParser {
   bool finishParse();  // flush the trailing page and tear down; returns true
   void abortParse();   // tear down without flushing (error / abandon)
 
-  void addLineToPage(std::shared_ptr<TextBlock> line, uint32_t visibleOffset);
+  void addLineToPage(std::unique_ptr<TextBlock> line, uint32_t visibleOffset);
   const std::vector<std::pair<std::string, uint16_t>>& getAnchors() const { return anchorData; }
   // Every footnote reference in the section with the page it appears on (same page counter as
   // getAnchors), for the section-wide footnote table -- see Section::loadSectionFootnotes().

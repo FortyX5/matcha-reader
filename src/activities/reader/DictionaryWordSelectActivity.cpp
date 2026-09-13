@@ -98,8 +98,10 @@ void DictionaryWordSelectActivity::extractWords() {
       continue;
     }
     const auto* line = static_cast<const PageLine*>(element.get());
-    const auto& block = line->getBlock();
+    const auto* block = line->getBlock();
     if (!block || !block->valid()) {
+      // Reset the pending hyphen too: a skipped line must not let a hyphenated word join across
+      // the gap it leaves.
       pendingHyphen = -1;
       continue;
     }

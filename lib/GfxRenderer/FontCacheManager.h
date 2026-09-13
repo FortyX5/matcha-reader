@@ -20,7 +20,7 @@ class FontCacheManager {
   // than warm glyphs; the slab re-fills lazily afterwards. Ordinary per-render cache hygiene
   // should keep calling clearCache() so non-Latin UI navigation stays fast.
   void releaseAllFontMemory();
-  void prewarmCache(int fontId, const char* utf8Text, uint8_t styleMask = 0x0F);
+  void prewarmCache(int fontId, const char* utf8Text, uint8_t styleMask = 0x0F, bool accumulate = true);
   // True if fontId is backed by an SD-card font (SdCardFont::prewarm(), one-open bulk-load path)
   // rather than a built-in compressed font (FontDecompressor's own group-cache prewarm, which has
   // a separate, much more limited concurrent-prewarm-buffer budget -- see prewarmCache() callers
