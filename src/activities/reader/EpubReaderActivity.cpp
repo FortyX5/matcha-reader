@@ -2207,9 +2207,19 @@ void EpubReaderActivity::render(RenderLock&& lock) {
         // renders gray levels 0-1 as solid black -- a mid-dark cover half showed as one black
         // blob until the grayscale planes lift the dark tones. (No blank-white intermediate
         // pass: it read as a distracting flash on full-page images.)
+        // A FAST pass is differential: it only drives pixels that differ from the controller's RED
+        // plane, so it cannot replace what is physically on the glass when that plane is not the
+        // previous frame. Three cases where it is not, matching renderPage()'s image branch:
+        // pagesUntilFullRefresh == 0 is the reader's first paint (deep-sleep wake discards
+        // controller RAM, leaving the sleep screen on the panel -- #237), a manual refresh must
+        // scrub regardless, and gray planes from a preceding image page sit in RED until a
+        // non-FAST pass rewrites it.
+        const bool cleanImageBasePending =
+            forcedRefreshPending || pagesUntilFullRefresh == 0 || renderer.panelHasGrayPlanes();
+        forcedRefreshPending = false;
         drawImagePage();
         renderStatusBar();
-        renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+        renderer.displayBuffer(cleanImageBasePending ? HalDisplay::HALF_REFRESH : HalDisplay::FAST_REFRESH);
 
         // The grayscale refine below re-reads the pixel cache several times (~1s+) and the BW
         // image is ALREADY a valid picture on the persistent e-ink. Snapshot the input stamp so
