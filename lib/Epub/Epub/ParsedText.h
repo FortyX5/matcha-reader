@@ -101,7 +101,7 @@ class ParsedText {
   // Chooses the glyph, magnification and column width for a `::first-letter` drop cap and
   // removes the letter from the text flow. Returns false (leaving the text untouched, so the
   // letter simply renders inline) when the paragraph cannot carry one.
-  bool prepareDropCap(const GfxRenderer& renderer, int fontId, int pageWidth);
+  bool prepareDropCap(const GfxRenderer& renderer, int fontId, int pageWidth, float lineCompression);
   // Word holding the drop cap's letter. 0 for a `::first-letter` rule, which by definition
   // styles the paragraph's first character; an enlarged span names its own word, because the
   // punctuation a paragraph opens with is tokenized ahead of it.
@@ -187,7 +187,10 @@ class ParsedText {
   // baseFontId is the reader's font; a block with a CSS font-size lays out (and later draws)
   // with BlockStyle::resolveFontId(baseFontId) instead. processLine receives each line and the
   // visible-codepoint offset of its first word (content-based positions, upstream #2805).
+  // lineCompression is the reader's line-spacing factor, the same one the emitted lines' own
+  // advance is computed with: the drop cap is sized to the height of the lines it must sit
+  // beside, so measuring it against the uncompressed leading would let it run into them.
   void layoutAndExtractLines(const GfxRenderer& renderer, int baseFontId, uint16_t viewportWidth,
                              const std::function<void(std::shared_ptr<TextBlock>, uint32_t)>& processLine,
-                             bool includeLastLine = true);
+                             bool includeLastLine = true, float lineCompression = 1.0f);
 };

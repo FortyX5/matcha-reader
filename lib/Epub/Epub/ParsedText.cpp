@@ -760,7 +760,8 @@ bool isDropCapLetter(const uint32_t cp) {
 
 }  // namespace
 
-bool ParsedText::prepareDropCap(const GfxRenderer& renderer, const int fontId, const int pageWidth) {
+bool ParsedText::prepareDropCap(const GfxRenderer& renderer, const int fontId, const int pageWidth,
+                                const float lineCompression) {
   const size_t idx = dropCapWordIndex;
   if (idx >= words.size() || words[idx].empty()) {
     return false;
@@ -812,10 +813,13 @@ bool ParsedText::prepareDropCap(const GfxRenderer& renderer, const int fontId, c
     return false;
   }
 
+  // The height to fill is N of the SAME vertical advance the lines beside the letter are emitted
+  // with -- the reader's line spacing and the block's CSS line-height -- not the font's raw
+  // leading, which under tighter leading makes the letter taller than the column it reserved.
   // Magnify by whole pixels only (see GfxRenderer::drawCharUpscaled). Floor rather than round,
   // so the letter never grows past the lines it is meant to sit beside; the small shortfall
   // reads as the optical gap a drop cap normally keeps above the baseline it lands on.
-  const int lineHeight = renderer.getLineHeight(fontId);
+  const int lineHeight = applyCssLineHeight(renderer.getLineHeight(fontId, lineCompression), blockStyle.lineHeightPct);
   const int targetHeight = lineHeight * blockStyle.dropCapLines;
   int scale = targetHeight / glyphHeight;
   if (scale > TextBlock::MAX_DROP_CAP_SCALE) scale = TextBlock::MAX_DROP_CAP_SCALE;
@@ -947,7 +951,7 @@ std::vector<size_t> ParsedText::computeDropCapLineBreaks(const GfxRenderer& rend
 // Consumes data to minimize memory usage
 void ParsedText::layoutAndExtractLines(const GfxRenderer& renderer, const int baseFontId, const uint16_t viewportWidth,
                                        const std::function<void(std::shared_ptr<TextBlock>, uint32_t)>& processLine,
-                                       const bool includeLastLine) {
+                                       const bool includeLastLine, const float lineCompression) {
   if (words.empty()) {
     return;
   }
@@ -1004,7 +1008,7 @@ void ParsedText::layoutAndExtractLines(const GfxRenderer& renderer, const int ba
   // word is measured as it will be drawn.
   if (blockStyle.dropCapLines > 0 && !dropCapResolved) {
     dropCapResolved = true;
-    if (!prepareDropCap(renderer, fontId, pageWidth)) {
+    if (!prepareDropCap(renderer, fontId, pageWidth, lineCompression)) {
       blockStyle.dropCapLines = 0;  // letter stays in the text and renders inline
     } else if (words.empty()) {
       return;  // the paragraph was the single letter
