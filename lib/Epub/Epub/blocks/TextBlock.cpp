@@ -332,6 +332,15 @@ void TextBlock::render(const GfxRenderer& renderer, const int baseFontId, const 
     //   SUP: raise by 40% of ascender — sits clearly above the cap-height
     //   SUB: lower by 25% of ascender — descends below baseline without clashing with ascenders below
     int wordY = y + rubyShift;
+    // drawTextScaled treats y as the top of a line box drawn ENTIRELY at `scale`, so it puts the
+    // baseline at y + ascender*scale. That holds for the dictionary popup, which scales whole
+    // paragraphs and scales their line advance to match. Here the line box is the block's own
+    // height and only this word is scaled, so that baseline is wrong in both directions: an
+    // enlarged word (a lettrine) sinks a full extra ascender and overlaps the line below, and a
+    // shrunk one (a small-caps run) floats above its neighbours. Shift back onto the line's
+    // baseline so a scaled word sits on the same one as the text around it.
+    // Rounds the way GfxRenderer's own scaleSigned does, so the shift cancels its offset exactly.
+    if (wordScaled) wordY += ascender - static_cast<int>((ascender * wordScale + 128) / WORD_SCALE_ONE);
     if ((currentStyle & EpdFontFamily::SUP) != 0) {
       wordY -= ascender * 2 / 5;
     } else if ((currentStyle & EpdFontFamily::SUB) != 0) {

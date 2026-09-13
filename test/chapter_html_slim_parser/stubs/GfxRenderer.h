@@ -40,7 +40,17 @@ class GfxRenderer {
   int getScreenHeight() const { return 800; }
   // Mirrors the real renderer: the line-spacing factor scales the leading.
   int getLineHeight(int, const float compression = 1.0f) const { return static_cast<int>(16 * compression + 0.5f); }
+  // 8.8 fixed-point magnification of the leading, for lines carrying a word-scale tag.
+  int getLineHeightScaled(const int font, const uint16_t scale) const {
+    const int natural = getLineHeight(font);
+    if (scale == 256) return natural;
+    const int scaled = (natural * scale + 128) / 256;
+    return scaled > 1 ? scaled : 1;
+  }
   int getFontAscenderSize(int) const { return 12; }
+  // Ascender + descender. Deliberately exceeds the 16px advance getLineHeight reports, mirroring
+  // the built-in faces whose advanceY is smaller than their own ink.
+  int getFontInkHeight(int) const { return 18; }
   int getSpaceWidth(int, EpdFontFamily::Style, int8_t = 0) const { return 4; }
   int getTextAdvanceX(int, const char* text, EpdFontFamily::Style, int8_t = 0) const {
     // Per CHARACTER, not per byte: the real renderer advances once per glyph, so counting bytes

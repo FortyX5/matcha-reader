@@ -3055,21 +3055,43 @@ void ChapterHtmlSlimParser::addLineToPage(std::unique_ptr<TextBlock> line, const
   // A word enlarged by an inline font-size (span) needs the line's advance to cover its taller
   // glyphs, or it collides with the next line. Only lines that actually carry per-word fonts
   // pay the scan; the base font for the leading stays the block's own.
-  int advanceFontId = lineFontId;
+  // Tracked as a HEIGHT, not as a font id: a word can be the block's own font drawn at a scale
+  // (a lettrine, or any run a stylesheet sizes past the resident 12/14/16/18pt ladder), and a
+  // scale tag is a negative marker rather than a font id. Resolving one as a font found nothing,
+  // so the scan skipped exactly the words it exists for and the line kept the base font's advance.
+  int tallest = renderer.getLineHeight(lineFontId, lineCompression);
+  // Ink the line's glyphs actually occupy. Several of the built-in faces set advanceY SMALLER than
+  // their own ascender + descender, so even a 100% line lets one line's descender meet the next
+  // line's ascender, and a stylesheet asking for less (a display heading at 83%) drives them
+  // through each other. No line is laid out shorter than this, whatever CSS and the reader's
+  // line-spacing setting work out to: below it the glyphs overlap, which on a 1-bit panel reads as
+  // broken rather than as tight typography.
+  int inkFloor = renderer.getFontInkHeight(lineFontId);
   if (line->hasWordFonts()) {
-    int tallest = renderer.getLineHeight(lineFontId, lineCompression);
     for (uint16_t w = 0; w < line->wordCount(); ++w) {
       const int32_t wf = line->wordFont(w);
-      if (wf == 0 || wf == advanceFontId) continue;
-      const int h = renderer.getLineHeight(wf, lineCompression);
-      if (h > tallest) {
-        tallest = h;
-        advanceFontId = wf;
+      if (wf == 0 || wf == lineFontId) continue;
+      int h = 0;
+      int ink = 0;
+      if (TextBlock::isWordScaleTag(wf)) {
+        const auto scale = static_cast<uint16_t>(-wf);
+        h = static_cast<int>(renderer.getLineHeightScaled(lineFontId, scale) * lineCompression + 0.5f);
+        ink = (renderer.getFontInkHeight(lineFontId) * scale + 128) / 256;
+      } else {
+        h = renderer.getLineHeight(wf, lineCompression);
+        ink = renderer.getFontInkHeight(wf);
       }
+      if (h > tallest) tallest = h;
+      if (ink > inkFloor) inkFloor = ink;
     }
   }
-  const int leading =
-      applyCssLineHeight(renderer.getLineHeight(advanceFontId, lineCompression), line->getBlockStyle().lineHeightPct);
+  // Ink alone sets the line solid: the deepest descender meets the tallest ascender below it with
+  // nothing between them, which on a bold heading reads as cramped even though nothing overlaps.
+  // The built-in faces contribute no gap of their own (advanceY is at or under the ink), so the
+  // floor carries one, as a fraction of the ink so it tracks the font and any word scale. Text
+  // whose stylesheet already leaves room is above the floor and keeps its own leading.
+  inkFloor += std::max(1, inkFloor / 12);
+  const int leading = std::max(applyCssLineHeight(tallest, line->getBlockStyle().lineHeightPct), inkFloor);
   const int lineHeight = leading + rubyExtra;
 
   // Keep-together buffering (page-break-inside/after: avoid): hold the line instead of placing
