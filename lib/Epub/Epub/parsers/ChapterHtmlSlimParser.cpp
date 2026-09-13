@@ -1143,7 +1143,8 @@ void ChapterHtmlSlimParser::finishTableRow() {
       lines.reserve(MAX_GRID_TABLE_CELL_WORDS * 2);
     }
     tableRowCells[column]->layoutAndExtractLines(
-        renderer, fontId, textWidth, [this, &lines](const std::shared_ptr<TextBlock>& line, const uint32_t offset) {
+        renderer, fontId, textWidth,
+        [this, &lines](const std::shared_ptr<TextBlock>& line, const uint32_t offset) {
           const size_t lineIndex = lines.size();
           lines.push_back(line);
           if (tableLineVisibleOffsets.size() <= lineIndex) {
