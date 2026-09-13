@@ -14,7 +14,8 @@ class GfxRenderer {
 
   int getScreenWidth() const { return 480; }
   int getScreenHeight() const { return 800; }
-  int getLineHeight(int, float = 1.0f) const { return 16; }
+  // Mirrors the real renderer: the line-spacing factor scales the leading.
+  int getLineHeight(int, const float compression = 1.0f) const { return static_cast<int>(16 * compression + 0.5f); }
   int getFontAscenderSize(int) const { return 12; }
   int getSpaceWidth(int, EpdFontFamily::Style, int8_t = 0) const { return 4; }
   int getTextAdvanceX(int, const char* text, EpdFontFamily::Style, int8_t = 0) const {

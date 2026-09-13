@@ -307,12 +307,27 @@ class DropCapTest : public ::testing::Test {
     for (size_t i = 1; i < wordCount; ++i) feedWord("syndicat");
   }
 
-  void layout() {
+  void layout(const float lineCompression = 1.0f) {
     parser->currentTextBlock->layoutAndExtractLines(
         renderer, 0, static_cast<uint16_t>(renderer.getScreenWidth()),
-        [this](const std::shared_ptr<TextBlock>& line, uint32_t) { lines.push_back(line); });
+        [this](const std::shared_ptr<TextBlock>& line, uint32_t) { lines.push_back(line); }, true, lineCompression);
   }
 };
+
+// The reserved column is N line ADVANCES tall, and the advance is the font's leading times the
+// reader's line-spacing factor. Sizing the glyph against the raw leading made it taller than the
+// lines it reserved, so its foot ran through the first full-width line below them.
+TEST_F(DropCapTest, SizesTheLetterAgainstTheCompressedLineAdvance) {
+  makeParser("p::first-letter { font-size: 300%; }\n");
+  openParagraph();
+  feedParagraph(60);
+  layout(0.5f);
+  ASSERT_GT(lines.size(), 4u);
+
+  const auto& cap = lines[0]->getDropCap();
+  ASSERT_TRUE(cap.present());
+  EXPECT_EQ(cap.scale, (LINE_HEIGHT / 2 * 3) / GLYPH_INK);
+}
 
 TEST_F(DropCapTest, WrapsTheOpeningLinesAroundAnEnlargedFirstLetter) {
   makeParser("p::first-letter { font-size: 300%; }\n");

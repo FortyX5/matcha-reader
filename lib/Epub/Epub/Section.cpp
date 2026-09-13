@@ -243,7 +243,11 @@ namespace {
 //      inside it, so a block with little or no trailing spacing gets a slightly taller box.
 //      PageBox height is computed at layout time and stored, so cached geometry must be rebuilt.
 //      The framing is unchanged.
-constexpr uint8_t SECTION_FILE_VERSION = 91;
+// v92: a drop cap is sized against the vertical advance its neighbouring lines are actually
+//      emitted with (reader line spacing and the block's CSS line-height) instead of the raw
+//      font leading. Tighter leading used to make the letter taller than the column it reserved,
+//      so it ran through the first full-width line below it. The framing is unchanged.
+constexpr uint8_t SECTION_FILE_VERSION = 92;
 // Written into the version field while a build is in progress; patched to
 // SECTION_FILE_VERSION only when the build is finalized. An abandoned /
 // crash-interrupted .bin therefore carries version 0, which loadSectionFile rejects
