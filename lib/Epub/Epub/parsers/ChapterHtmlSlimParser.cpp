@@ -1150,7 +1150,8 @@ void ChapterHtmlSlimParser::finishTableRow() {
             tableLineVisibleOffsets.resize(lineIndex + 1, UINT32_MAX);
           }
           tableLineVisibleOffsets[lineIndex] = std::min(tableLineVisibleOffsets[lineIndex], offset);
-        });
+        },
+        true, lineCompression);
     maxLineCount = std::max(maxLineCount, lines.size());
   }
   tableRowCells.clear();
@@ -2586,7 +2587,7 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
         [self](const std::shared_ptr<TextBlock>& textBlock, const uint32_t offset) {
           self->addLineToPage(textBlock, offset);
         },
-        false);
+        false, self->lineCompression);
   }
 }
 
@@ -3195,7 +3196,8 @@ void ChapterHtmlSlimParser::makePages() {
 
   currentTextBlock->layoutAndExtractLines(
       renderer, fontId, effectiveWidth,
-      [this](const std::shared_ptr<TextBlock>& textBlock, const uint32_t offset) { addLineToPage(textBlock, offset); });
+      [this](const std::shared_ptr<TextBlock>& textBlock, const uint32_t offset) { addLineToPage(textBlock, offset); },
+      true, lineCompression);
 
   // Before the panel stitching below: the buffered lines are only placed now, and it is their
   // placement that sets lastPanelBox.

@@ -90,11 +90,19 @@ if (parsedSize != fileSize) {
 
 ## `section.bin`
 
-### Version 91 (fork numbering)
+### Version 92 (fork numbering)
 
 Each file in `sections/*.bin` stores one laid-out spine section. The header is
 also the cache-busting key: if any layout-affecting setting differs from the
 current reader settings, the section is discarded and rebuilt.
+
+Version 92 keeps the version 91 framing unchanged. A drop cap is now sized
+against the vertical advance the lines beside it are actually emitted with —
+the reader's line-spacing factor and the block's CSS `line-height` — instead of
+the font's raw leading. Under tighter leading the enlarged letter came out
+taller than the column it reserved, so it ran through the first full-width line
+below the reserved lines. The reserved column and the opening lines' breaks
+change with it, so cached sections must be rebuilt.
 
 Version 91 keeps the version 90 framing unchanged. Only the geometry stored in
 `PageBox` changes: a bordered block's closing edge is no longer allowed above
