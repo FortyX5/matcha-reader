@@ -651,15 +651,15 @@ void ChapterHtmlSlimParser::emitInvertedPanel(const BlockStyle& blockStyle, cons
   const int height = currentPageNextY - top + lineHeight;
   if (height <= 0) return;
 
-  auto panel = std::shared_ptr<PageBox>(
-      new (std::nothrow) PageBox(static_cast<int16_t>(right - left), static_cast<int16_t>(height),
-                                 /*edges=*/0, static_cast<int16_t>(left), static_cast<int16_t>(top), /*filled=*/true));
+  auto panel = makeUniqueNoThrow<PageBox>(static_cast<int16_t>(right - left), static_cast<int16_t>(height),
+                                          /*edges=*/0, static_cast<int16_t>(left), static_cast<int16_t>(top),
+                                          /*filled=*/true);
   if (!panel) {
     LOG_ERR("EHP", "OOM: inverted panel box");
     return;
   }
-  currentPage->elements.push_back(panel);
-  lastPanelBox = std::move(panel);
+  lastPanelBox = panel.get();  // the Page owns it from here
+  currentPage->elements.push_back(std::move(panel));
 }
 
 // The ONE place a page boundary is made. Everything about CSS page breaks that could go wrong --
@@ -767,7 +767,7 @@ void ChapterHtmlSlimParser::emitBoxRect(const bool openBottom) {
     for (size_t i = boxFirstElementIndex; i < currentPage->elements.size(); ++i) {
       const auto& element = currentPage->elements[i];
       if (element->getTag() != TAG_PageLine) continue;
-      const auto line = std::static_pointer_cast<PageLine>(element);
+      const auto* line = static_cast<const PageLine*>(element.get());
       const auto& text = line->getBlock();
       const int lineFontId = text->getBlockStyle().resolveFontId(fontId);
       int rightmostX = 0;
@@ -798,9 +798,8 @@ void ChapterHtmlSlimParser::emitBoxRect(const bool openBottom) {
 
   const uint8_t borderSpec =
       CssStyle::makeBorderSpec(edges, CssStyle::lineStyleOf(boxBorderSpec), CssStyle::lineWidthOf(boxBorderSpec));
-  auto box = std::shared_ptr<PageBox>(new (std::nothrow)
-                                          PageBox(width, static_cast<int16_t>(yBottom - yTop), borderSpec, x, yTop));
-  if (box) currentPage->elements.push_back(box);
+  auto box = makeUniqueNoThrow<PageBox>(width, static_cast<int16_t>(yBottom - yTop), borderSpec, x, yTop);
+  if (box) currentPage->elements.push_back(std::move(box));
 }
 
 void ChapterHtmlSlimParser::maybeEmitOpenBoxForPageBreak() {
@@ -1017,13 +1016,12 @@ void ChapterHtmlSlimParser::emitHorizontalRule(const BlockStyle& blockStyle) {
 
   currentPageNextY += topSpacing;
 
-  auto pageRule = std::shared_ptr<PageHorizontalRule>(
-      new (std::nothrow) PageHorizontalRule(width, ruleThickness, xPos, currentPageNextY));
+  auto pageRule = makeUniqueNoThrow<PageHorizontalRule>(width, ruleThickness, xPos, currentPageNextY);
   if (!pageRule) {
     LOG_ERR("EHP", "Failed to create PageHorizontalRule");
     return;
   }
-  currentPage->elements.push_back(pageRule);
+  currentPage->elements.push_back(std::move(pageRule));
   setCurrentPageVisibleOffset(visibleTextOffset);
   currentPageNextY = static_cast<int16_t>(currentPageNextY + ruleThickness + bottomSpacing);
 
@@ -1086,8 +1084,8 @@ void ChapterHtmlSlimParser::addTableRowSeparator() {
     return;
   }
 
-  auto separator = std::shared_ptr<PageHorizontalRule>(
-      new (std::nothrow) PageHorizontalRule(viewportWidth, TABLE_ROW_SEPARATOR_THICKNESS, 0, currentPageNextY + 1));
+  auto separator =
+      makeUniqueNoThrow<PageHorizontalRule>(viewportWidth, TABLE_ROW_SEPARATOR_THICKNESS, 0, currentPageNextY + 1);
   if (!separator) {
     LOG_ERR("EHP", "OOM: table row separator");
     return;
@@ -1144,9 +1142,9 @@ void ChapterHtmlSlimParser::finishTableRow() {
     }
     tableRowCells[column]->layoutAndExtractLines(
         renderer, fontId, textWidth,
-        [this, &lines](const std::shared_ptr<TextBlock>& line, const uint32_t offset) {
+        [this, &lines](std::unique_ptr<TextBlock> line, const uint32_t offset) {
           const size_t lineIndex = lines.size();
-          lines.push_back(line);
+          lines.push_back(std::move(line));
           if (tableLineVisibleOffsets.size() <= lineIndex) {
             tableLineVisibleOffsets.resize(lineIndex + 1, UINT32_MAX);
           }
@@ -1215,7 +1213,7 @@ void ChapterHtmlSlimParser::finishTableRow() {
 
       // Reset Y so every cell in this slice shares one baseline.
       currentPageNextY = rowY;
-      addLineToPage(line, lineVisibleOffset);
+      addLineToPage(std::move(line), lineVisibleOffset);
     }
     currentPageNextY = static_cast<int16_t>(rowY + rowLineHeight);
   }
@@ -1823,17 +1821,18 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
                 }
                 self->currentPageNextY += imageMarginTop;
 
-                // nothrow: make_shared uses bare new, which aborts on OOM under
-                // -fno-exceptions; images arrive mid-parse when the heap is at its
-                // most loaded, so this must fail soft into the null-check below.
-                std::shared_ptr<ImageBlock> imageBlock;
+                // nothrow: a bare new aborts on OOM under -fno-exceptions, and images arrive
+                // mid-parse when the heap is at its most loaded, so this must fail soft into
+                // the null-check below. Unique ownership since upstream #3518 -- PageImage
+                // takes the block outright.
+                std::unique_ptr<ImageBlock> imageBlock;
                 int xPos = 0;
                 int yPos = 0;
                 if (rotateImage) {
                   // Store natural dims; render() fits and centres them in the rotated frame.
-                  imageBlock = std::shared_ptr<ImageBlock>(
-                      new (std::nothrow) ImageBlock(cachedImagePath, resolvedPath, static_cast<int16_t>(dims.width),
-                                                    static_cast<int16_t>(dims.height)));
+                  imageBlock =
+                      makeUniqueNoThrow<ImageBlock>(cachedImagePath, resolvedPath, static_cast<int16_t>(dims.width),
+                                                    static_cast<int16_t>(dims.height));
                   if (imageBlock) {
                     const int reserve = std::max(self->renderer.getScreenWidth() - self->viewportWidth,
                                                  self->renderer.getScreenHeight() - self->viewportHeight);
@@ -1850,8 +1849,8 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
                   int fitH = static_cast<int>(dims.height * s + 0.5f);
                   if (fitW < 1) fitW = 1;
                   if (fitH < 1) fitH = 1;
-                  imageBlock = std::shared_ptr<ImageBlock>(new (std::nothrow) ImageBlock(
-                      cachedImagePath, resolvedPath, static_cast<int16_t>(fitW), static_cast<int16_t>(fitH)));
+                  imageBlock = makeUniqueNoThrow<ImageBlock>(cachedImagePath, resolvedPath, static_cast<int16_t>(fitW),
+                                                             static_cast<int16_t>(fitH));
                   xPos = (self->viewportWidth - fitW) / 2;
                   yPos = (self->viewportHeight - fitH) / 2;
                   if (yPos < 0) yPos = 0;
@@ -1860,13 +1859,13 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
                   LOG_ERR("EHP", "Failed to create ImageBlock");
                   return;
                 }
-                auto pageImage = std::shared_ptr<PageImage>(
-                    new (std::nothrow) PageImage(imageBlock, static_cast<int16_t>(xPos), static_cast<int16_t>(yPos)));
+                auto pageImage = makeUniqueNoThrow<PageImage>(std::move(imageBlock), static_cast<int16_t>(xPos),
+                                                              static_cast<int16_t>(yPos));
                 if (!pageImage) {
                   LOG_ERR("EHP", "Failed to create PageImage");
                   return;
                 }
-                self->currentPage->elements.push_back(pageImage);
+                self->currentPage->elements.push_back(std::move(pageImage));
                 self->setCurrentPageVisibleOffset(self->visibleTextOffset);
 
                 // Complete the image's dedicated page; start fresh for following text.
@@ -2585,8 +2584,8 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
                                         : self->viewportWidth;
     self->currentTextBlock->layoutAndExtractLines(
         self->renderer, self->fontId, effectiveWidth,
-        [self](const std::shared_ptr<TextBlock>& textBlock, const uint32_t offset) {
-          self->addLineToPage(textBlock, offset);
+        [self](std::unique_ptr<TextBlock> textBlock, const uint32_t offset) {
+          self->addLineToPage(std::move(textBlock), offset);
         },
         false, self->lineCompression);
   }
@@ -3028,7 +3027,7 @@ bool ChapterHtmlSlimParser::parseAndBuildPages() {
   return finishParse();
 }
 
-void ChapterHtmlSlimParser::addLineToPage(std::shared_ptr<TextBlock> line, const uint32_t visibleOffset) {
+void ChapterHtmlSlimParser::addLineToPage(std::unique_ptr<TextBlock> line, const uint32_t visibleOffset) {
   // Furigana renders ABOVE the line's ascender, so a ruby-carrying line needs extra leading or
   // the annotation overlaps the line above (and clips at the page top). That headroom goes into
   // the line's HEIGHT only -- deliberately not into its y.
@@ -3141,7 +3140,12 @@ void ChapterHtmlSlimParser::addLineToPage(std::shared_ptr<TextBlock> line, const
       LOG_DBG("EHP", "Dropped page link: %.48s", link.href);
     }
   }
-  currentPage->elements.push_back(std::make_shared<PageLine>(line, xOffset, currentPageNextY));
+  auto pageLine = makeUniqueNoThrow<PageLine>(std::move(line), xOffset, currentPageNextY);
+  if (!pageLine) {
+    LOG_ERR("EHP", "OOM: PageLine");
+    return;
+  }
+  currentPage->elements.push_back(std::move(pageLine));
   currentPageNextY += lineHeight;
   // Floor for the box's closing edge: it may be pulled up into trailing spacing, never into text.
   if (boxDepth >= 0) boxLastLineBottomY = currentPageNextY;
@@ -3197,7 +3201,9 @@ void ChapterHtmlSlimParser::makePages() {
 
   currentTextBlock->layoutAndExtractLines(
       renderer, fontId, effectiveWidth,
-      [this](const std::shared_ptr<TextBlock>& textBlock, const uint32_t offset) { addLineToPage(textBlock, offset); },
+      [this](std::unique_ptr<TextBlock> textBlock, const uint32_t offset) {
+        addLineToPage(std::move(textBlock), offset);
+      },
       true, lineCompression);
 
   // Before the panel stitching below: the buffered lines are only placed now, and it is their

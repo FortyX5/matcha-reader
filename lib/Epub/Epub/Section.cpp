@@ -515,6 +515,13 @@ bool Section::startBuild(const ReaderRenderSpec& spec, const std::function<void(
     LOG_ERR("SCT", "startBuild called while a build is already active");
     return false;
   }
+  // Reclaim rebuildable font caches before CSS and layout allocations. Upstream calls
+  // releaseSdFontCaches() here; this fork renamed and widened that to releaseAllFontMemory(),
+  // which additionally surrenders the FontDecompressor glyph slab (~24KB) -- strictly more of
+  // what this call site wants, and what the fork's other heap-critical paths already use.
+  if (auto* fontCache = renderer.getFontCacheManager()) {
+    fontCache->releaseAllFontMemory();
+  }
   buildComplete_ = false;
   builtPageCount_ = 0;
   // Pages from a loaded partial stay readable (from filePath) while this build writes
