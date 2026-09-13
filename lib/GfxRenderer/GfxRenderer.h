@@ -380,6 +380,11 @@ class GfxRenderer {
   bool getGlyphMetrics(int fontId, uint32_t cp, EpdFontFamily::Style style, int* left, int* width, int* top,
                        int* height) const;
   int getFontAscenderSize(int fontId) const;
+  // Vertical extent the glyphs actually occupy: ascender above the baseline plus descender below.
+  // Distinct from getLineHeight(), which is the font's newline advance -- several of the built-in
+  // faces set that SMALLER than their own ink, so a line advance taken from it alone lets a
+  // descender on one line run into an ascender on the next.
+  int getFontInkHeight(int fontId) const;
   // The y drawText() will put `text`'s baseline at, given the same `y`. Text containing CJK is
   // routed to a registered SD fallback whose metrics differ from fontId's, and drawText adds a
   // line-height correction on top -- so a caller that has to place something on the SAME line as
