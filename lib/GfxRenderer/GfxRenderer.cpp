@@ -2802,30 +2802,36 @@ bool GfxRenderer::drawCharUpscaled(const int fontId, const uint32_t cp, const in
   if (inkWidthOut) *inkWidthOut = srcW * scale;
   if (inkHeightOut) *inkHeightOut = srcH * scale;
 
-  // Each source pixel fills a scale x scale block; the ink box origin is the caller's, so no
-  // bearing arithmetic leaks out of here.
-  for (int srcY = 0; srcY < srcH; srcY++) {
-    for (int srcX = 0; srcX < srcW; srcX++) {
-      const int pos = srcY * srcW + srcX;
-      bool hasInk;
-      if (fontData->is2Bit) {
-        // 2-bit coverage: 4 px per byte, MSB first. Treat the two darker levels as ink, the
-        // same threshold the 50% path uses, so a magnified glyph keeps the stroke weight the
-        // font intends rather than growing a light antialiasing fringe into solid black.
-        const uint8_t byte = bitmap[pos >> 2];
-        const uint8_t raw = (byte >> ((3 - (pos & 3)) * 2)) & 0x3;
-        hasInk = raw >= 2;
-      } else {
-        const uint8_t byte = bitmap[pos >> 3];
-        hasInk = ((byte >> (7 - (pos & 7))) & 1) != 0;
+  // Destination-space walk with the same sampler the scaled-word path uses: point-replicating each
+  // source texel into a scale x scale block magnifies the source grid's staircase along with the
+  // glyph, which is what makes a drop cap look blocky beside the text it opens. Reading the
+  // coverage BETWEEN texels puts the edge where the outline actually is. The ink box origin is the
+  // caller's, so no bearing arithmetic leaks out of here.
+  const int dstW = srcW * scale;
+  const int dstH = srcH * scale;
+  const int32_t stepFP = 65536 / scale;  // source texels per destination pixel, 16.16
+  const bool binarize = renderMode == BW;
+
+  for (int dstY = 0; dstY < dstH; dstY++) {
+    // Destination pixel CENTRE mapped back into the source, less the half texel that puts texel
+    // centres on integers -- off by a half here thickens one side of every stroke.
+    const int32_t syFP = ((2 * dstY + 1) * stepFP) / 2 - 32768;
+    for (int dstX = 0; dstX < dstW; dstX++) {
+      const int32_t sxFP = ((2 * dstX + 1) * stepFP) / 2 - 32768;
+      const uint8_t ink = sampleGlyphInk(bitmap, fontData->is2Bit, binarize, srcW, srcH, sxFP, syFP);
+      if (renderMode == BW || !fontData->is2Bit) {
+        // One bit per pixel on the panel, so the edge cannot be soft -- but at half coverage it
+        // lands on the outline instead of on the source grid, and that is what removes the steps.
+        if (ink >= 128) drawPixel(inkLeftX + dstX, inkTopY + dstY, black);
+        continue;
       }
-      if (!hasInk) continue;
-      const int dstX = inkLeftX + srcX * scale;
-      const int dstY = inkTopY + srcY * scale;
-      for (int dy = 0; dy < scale; dy++) {
-        for (int dx = 0; dx < scale; dx++) {
-          drawPixel(dstX + dx, dstY + dy, black);
-        }
+      // Back to the 4 levels the grayscale planes encode.
+      const uint8_t raw = static_cast<uint8_t>((ink * 3 + 127) / 255);
+      const uint8_t bmpVal = 3 - raw;
+      if (renderMode == GRAYSCALE_MSB && (bmpVal == 1 || bmpVal == 2)) {
+        drawPixel(inkLeftX + dstX, inkTopY + dstY, false);
+      } else if (renderMode == GRAYSCALE_LSB && bmpVal == 1) {
+        drawPixel(inkLeftX + dstX, inkTopY + dstY, false);
       }
     }
   }
