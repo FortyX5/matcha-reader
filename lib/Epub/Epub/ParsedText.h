@@ -123,7 +123,7 @@ class ParsedText {
   void extractLine(size_t breakIndex, int pageWidth, const std::vector<uint16_t>& wordWidths,
                    const std::vector<bool>& continuesVec, const std::vector<bool>& noSpaceBeforeVec,
                    const std::vector<size_t>& lineBreakIndices,
-                   const std::function<void(std::shared_ptr<TextBlock>, uint32_t)>& processLine,
+                   const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                    const GfxRenderer& renderer, int fontId);
   std::vector<uint16_t> calculateWordWidths(const GfxRenderer& renderer, int fontId);
   // Drop the first `consumed` tokens, keeping every parallel per-word array in lockstep.
@@ -190,7 +190,11 @@ class ParsedText {
   // lineCompression is the reader's line-spacing factor, the same one the emitted lines' own
   // advance is computed with: the drop cap is sized to the height of the lines it must sit
   // beside, so measuring it against the uncompressed leading would let it run into them.
+  //
+  // The line is handed over as a unique_ptr (upstream #3518): every consumer takes sole
+  // ownership, and dropping the shared_ptr control block is one less allocation per line on a
+  // heap where fragmentation is the binding constraint.
   void layoutAndExtractLines(const GfxRenderer& renderer, int baseFontId, uint16_t viewportWidth,
-                             const std::function<void(std::shared_ptr<TextBlock>, uint32_t)>& processLine,
+                             const std::function<void(std::unique_ptr<TextBlock>, uint32_t)>& processLine,
                              bool includeLastLine = true, float lineCompression = 1.0f);
 };
