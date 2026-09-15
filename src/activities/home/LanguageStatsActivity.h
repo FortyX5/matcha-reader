@@ -4,6 +4,7 @@
 
 #include "ReadingStatsStore.h"
 #include "activities/Activity.h"
+#include "components/StatsWidgets.h"
 #include "components/themes/BaseTheme.h"
 #include "util/ButtonNavigator.h"
 
@@ -27,6 +28,9 @@ class LanguageStatsActivity final : public Activity {
   // Where render() last drew the tab row, for hit-testing taps on it. The tabs sit
   // in the fixed band above the scrolled content, so this does not move with scroll.
   Rect tabBar{};
+  // Calendar month chevrons, same reason as on the overall screen: the keys that
+  // step months do not exist on a touch board.
+  StatsWidgets::MonthNav monthNav{};
   uint16_t calYear = 0;
   uint8_t calMonth = 1;
 
@@ -35,6 +39,7 @@ class LanguageStatsActivity final : public Activity {
   const char* selectedCode() const;
   std::vector<TabInfo> buildTabs() const;
   void selectTab(int index);
+  bool stepMonthFromTap();
 
  public:
   explicit LanguageStatsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)

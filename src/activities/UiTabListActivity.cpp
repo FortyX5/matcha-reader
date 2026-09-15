@@ -10,7 +10,6 @@
 namespace fui = freeink::ui;
 
 namespace {
-constexpr int16_t TOUCH_TAB_BAR_HEIGHT = 50;
 }
 
 UiTabListActivity::UiTabListActivity(const char* name, GfxRenderer& renderer, MappedInputManager& mappedInput,
@@ -115,8 +114,7 @@ void UiTabListActivity::buildTabBar(UiScreen& screen) {
     tabProps.contentInset = fui::Insets{2, 0, 2, 0};
   }
   const int16_t tabLineHeight = screen.target().lineHeight(tabProps.text.font);
-  const int16_t preferredTabHeight =
-      mappedInput.hasTouch() ? TOUCH_TAB_BAR_HEIGHT : static_cast<int16_t>(metrics.tabBarHeight);
+  const auto preferredTabHeight = static_cast<int16_t>(tabBandHeight(metrics, mappedInput.hasTouch()));
   const int16_t tabBand = preferredTabHeight > tabLineHeight + 10 ? preferredTabHeight : tabLineHeight + 10;
 
   if (tabPillMaxPad > 0) {

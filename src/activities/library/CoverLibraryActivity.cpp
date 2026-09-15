@@ -858,7 +858,8 @@ std::vector<TabInfo> CoverLibraryActivity::buildTabs() const {
 Rect CoverLibraryActivity::tabBarRect() const {
   const auto& metrics = UITheme::getInstance().getMetrics();
   return Rect{0, static_cast<int16_t>(metrics.topPadding + metrics.headerHeight),
-              static_cast<int16_t>(renderer.getScreenWidth()), static_cast<int16_t>(metrics.tabBarHeight)};
+              static_cast<int16_t>(renderer.getScreenWidth()),
+              static_cast<int16_t>(tabBandHeight(metrics, mappedInput.hasTouch()))};
 }
 
 void CoverLibraryActivity::loadShelves() {

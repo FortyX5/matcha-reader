@@ -120,6 +120,11 @@ void LyraTheme::drawTabBar(const GfxRenderer& renderer, Rect rect, const std::ve
     renderer.fillRectDither(rect.x, rect.y, rect.width, rect.height, Color::LightGray);
   }
 
+  // Centred in the band rather than pinned a fixed 6px from its top. The band is taller than the
+  // label, and anchoring to the top put every spare pixel underneath -- next to the Settings tabs,
+  // which FreeInkUI centres, the label sat visibly high with a gap below it.
+  const int labelY = rect.y + (rect.height - renderer.getLineHeight(UI_10_FONT_ID)) / 2;
+
   // Tabs sit at natural width, so enough of them overrun the bar. Whole tabs only: one clipped
   // in half reads as a rendering fault, not as "there is more this way".
   const int scrollX = tabScrollOffset(renderer, rect, tabs, UI_10_FONT_ID, 2 * hPaddingInSelection,
@@ -146,7 +151,7 @@ void LyraTheme::drawTabBar(const GfxRenderer& renderer, Rect rect, const std::ve
       }
     }
 
-    renderer.drawText(UI_10_FONT_ID, currentX + hPaddingInSelection, rect.y + 6, tab.label, !(tab.selected && selected),
+    renderer.drawText(UI_10_FONT_ID, currentX + hPaddingInSelection, labelY, tab.label, !(tab.selected && selected),
                       EpdFontFamily::REGULAR);
 
     currentX += textWidth + LyraMetrics::values.tabSpacing + 2 * hPaddingInSelection;

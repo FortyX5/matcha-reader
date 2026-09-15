@@ -76,6 +76,23 @@ void LanguageStatsActivity::selectTab(const int index) {
   requestUpdate();
 }
 
+bool LanguageStatsActivity::stepMonthFromTap() {
+  if (monthNav.next.width == 0) return false;
+  int tx = 0;
+  int ty = 0;
+  if (!mappedInput.wasScreenTapped(tx, ty)) return false;
+  const auto hit = [&](const Rect& r) { return tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height; };
+  if (hit(monthNav.prev)) {
+    StatsWidgets::stepMonth(calYear, calMonth, -1);
+  } else if (hit(monthNav.next)) {
+    StatsWidgets::stepMonth(calYear, calMonth, +1);
+  } else {
+    return false;
+  }
+  requestUpdate();
+  return true;
+}
+
 void LanguageStatsActivity::loop() {
   // Tap steps back, hold goes home; the latch stops the hold's release firing the tap too.
   if (backLongPressFired) {
@@ -142,6 +159,9 @@ void LanguageStatsActivity::loop() {
     }
     return;
   }
+  // Tapping a chevron steps the month, the touch equivalent of the Left/Right keys
+  // below -- which resolve to front buttons a touch board does not have.
+  if (stepMonthFromTap()) return;
   if (mappedInput.wasReleased(MappedInputManager::Button::ScreenLeft)) {
     StatsWidgets::stepMonth(calYear, calMonth, -1);
     requestUpdate();
@@ -174,7 +194,9 @@ void LanguageStatsActivity::render(RenderLock&&) {
   // Content starts below the tab bar, which sits in the fixed band under the header exactly as
   // it does in Library and Settings.
   const int tabBarY = screen.y + metrics.topPadding + metrics.headerHeight;
-  const int headerBottom = tabBarY + metrics.tabBarHeight + metrics.verticalSpacing;
+  // Same band height Settings and Library use, so the three read as one component.
+  const int tabBarH = tabBandHeight(metrics, mappedInput.hasTouch());
+  const int headerBottom = tabBarY + tabBarH + metrics.verticalSpacing;
   const int contentTop = headerBottom - scrollOffset;
 
   const int cardMargin = 20;
@@ -221,7 +243,7 @@ void LanguageStatsActivity::render(RenderLock&&) {
     y += StatsWidgets::drawTileGrid(renderer, cardX, y, cardW, tiles) + 8;
 
     const StatsWidgets::MonthSource source{code, languageMonthStatus, languageDaysReadInMonth};
-    y += StatsWidgets::drawMonthCalendar(renderer, cardX, y, cardW, calYear, calMonth, today, source);
+    y += StatsWidgets::drawMonthCalendar(renderer, cardX, y, cardW, calYear, calMonth, today, source, &monthNav);
 
     const int contentEndY = y + 10;
     const int visibleHeight = renderer.getScreenHeight() - headerBottom - 50;
@@ -236,7 +258,7 @@ void LanguageStatsActivity::render(RenderLock&&) {
   tabBar = Rect{};
   if (!languages.empty()) {
     // Kept for loop()'s hit test, so taps land exactly where the labels were drawn.
-    tabBar = Rect{0, tabBarY, screen.width, metrics.tabBarHeight};
+    tabBar = Rect{0, tabBarY, screen.width, tabBarH};
     // Same component Library and Settings use. Always drawn focused: Confirm acts only on tabs.
     GUI.drawTabBar(renderer, tabBar, buildTabs(), true);
   }
