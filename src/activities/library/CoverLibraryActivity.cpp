@@ -371,7 +371,11 @@ void CoverLibraryActivity::loadRecentBooks() {
 }
 
 namespace {
-constexpr char LIBRARY_INDEX_PATH[] = "/.crosspoint/library.idx";
+// Not library.idx: that name belongs to the CLX1 index the CrossPoint list view builds
+// (lib/LibraryIndex, docs/file-formats.md). Both files would otherwise live at the same path and
+// each view would wipe the other's on every write -- rejected cleanly by the magic below, but
+// rebuilt from scratch on every switch between the two library screens.
+constexpr char LIBRARY_INDEX_PATH[] = "/.crosspoint/covers.idx";
 constexpr uint32_t LIBRARY_INDEX_MAGIC = 0x4C494258;  // "LIBX"
 constexpr uint8_t LIBRARY_INDEX_VERSION = 3;
 constexpr size_t LIBRARY_INDEX_MAX_ENTRIES = 2048;  // guards a corrupt count against the heap

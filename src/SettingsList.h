@@ -244,17 +244,27 @@ inline const std::vector<SettingInfo>& settingsBaseList() {
     statusBarClockValues[CrossPointSettings::STATUS_BAR_CLOCK_LEFT] = StrId::STR_DIR_LEFT;
 
     std::vector<SettingInfo> v = {
-        // --- Display ---
+        // --- Sleep ---
+        // STR_CAT_SLEEP is not one of the four tabs: these rows are reached through the Sleep row
+        // in Display, which opens SettingsActivity on this category alone. Listed in the order
+        // they appear there.
         SettingInfo::Enum(StrId::STR_SLEEP_SCREEN, &CrossPointSettings::sleepScreen, std::move(sleepScreenValues),
-                          "sleepScreen", StrId::STR_CAT_DISPLAY),
+                          "sleepScreen", StrId::STR_CAT_SLEEP),
         SettingInfo::Enum(StrId::STR_SLEEP_COVER_MODE, &CrossPointSettings::sleepScreenCoverMode,
-                          {StrId::STR_FIT, StrId::STR_CROP}, "sleepScreenCoverMode", StrId::STR_CAT_DISPLAY),
+                          {StrId::STR_FIT, StrId::STR_CROP}, "sleepScreenCoverMode", StrId::STR_CAT_SLEEP),
         SettingInfo::Enum(StrId::STR_SLEEP_COVER_FILTER, &CrossPointSettings::sleepScreenCoverFilter,
                           {StrId::STR_NONE_OPT, StrId::STR_FILTER_CONTRAST, StrId::STR_INVERTED},
-                          "sleepScreenCoverFilter", StrId::STR_CAT_DISPLAY),
+                          "sleepScreenCoverFilter", StrId::STR_CAT_SLEEP),
         SettingInfo::Enum(StrId::STR_QUICK_RESUME_TIMEOUT, &CrossPointSettings::quickResumeSleepScreen,
-                          {StrId::STR_STATE_OFF, StrId::STR_STATE_ON}, "quickResumeSleepScreen",
-                          StrId::STR_CAT_DISPLAY),
+                          {StrId::STR_STATE_OFF, StrId::STR_STATE_ON}, "quickResumeSleepScreen", StrId::STR_CAT_SLEEP),
+        SettingInfo::Value(
+            StrId::STR_TIME_TO_SLEEP, &CrossPointSettings::sleepTimeoutMinutes,
+            {CrossPointSettings::MIN_SLEEP_TIMEOUT_MINUTES, CrossPointSettings::MAX_SLEEP_TIMEOUT_MINUTES, 1},
+            "sleepTimeoutMinutes", StrId::STR_CAT_SLEEP),
+        SettingInfo::Toggle(StrId::STR_RESTORE_LIGHT_ON_WAKE, &CrossPointSettings::frontlightRestoreOnWake,
+                            "frontlightRestoreOnWake", StrId::STR_CAT_SLEEP),
+
+        // --- Display ---
         SettingInfo::Enum(StrId::STR_HIDE_BATTERY, &CrossPointSettings::hideBatteryPercentage,
                           {StrId::STR_NEVER, StrId::STR_IN_READER, StrId::STR_ALWAYS}, "hideBatteryPercentage",
                           StrId::STR_CAT_DISPLAY),
@@ -269,8 +279,6 @@ inline const std::vector<SettingInfo>& settingsBaseList() {
         SettingInfo::Toggle(StrId::STR_SUNLIGHT_FADING_FIX, &CrossPointSettings::fadingFix, "fadingFix",
                             StrId::STR_CAT_DISPLAY),
 #if FREEINK_CAP_FRONTLIGHT
-        SettingInfo::Toggle(StrId::STR_RESTORE_LIGHT_ON_WAKE, &CrossPointSettings::frontlightRestoreOnWake,
-                            "frontlightRestoreOnWake", StrId::STR_CAT_DISPLAY),
 #endif
         // Night mode = inverted output polarity everywhere (ActivityManager
         // applies it to every activity), so it lives in the Display category.
@@ -332,13 +340,17 @@ inline const std::vector<SettingInfo>& settingsBaseList() {
                           {StrId::STR_MENU_STYLE_LIST, StrId::STR_MENU_STYLE_TOOLBAR}, "readerMenuStyle",
                           StrId::STR_CAT_READER),
         // --- Controls ---
+        // Front buttons first, then the side buttons, then the touch equivalents. The Shortcuts
+        // and Remap rows are actions, inserted ahead of these in SettingsActivity.
+        SettingInfo::Toggle(StrId::STR_FRONT_BTN_FOLLOW_ORIENTATION, &CrossPointSettings::frontButtonFollowOrientation,
+                            "frontButtonFollowOrientation", StrId::STR_CAT_CONTROLS),
+        SettingInfo::Toggle(StrId::STR_WORD_LOOKUP_SIDE_BUTTONS, &CrossPointSettings::wordLookupSideButtons,
+                            "wordLookupSideButtons", StrId::STR_CAT_CONTROLS),
         SettingInfo::Toggle(StrId::STR_REVERSED_PAGE_TURN, &CrossPointSettings::reversePageTurn, "reversePageTurn",
                             StrId::STR_CAT_CONTROLS),
         SettingInfo::Enum(StrId::STR_SIDE_BTN_LAYOUT, &CrossPointSettings::sideButtonLayout,
                           {StrId::STR_PREV_NEXT, StrId::STR_NEXT_PREV, StrId::STR_DISABLED}, "sideButtonLayout",
                           StrId::STR_CAT_CONTROLS),
-        SettingInfo::Toggle(StrId::STR_WORD_LOOKUP_SIDE_BUTTONS, &CrossPointSettings::wordLookupSideButtons,
-                            "wordLookupSideButtons", StrId::STR_CAT_CONTROLS),
         // Index 4 (Inverted Swipe) is Matcha-only, for right-to-left vertical reading.
         SettingInfo::Enum(StrId::STR_TOUCH_READER_CONTROLS, &CrossPointSettings::touchReaderControls,
                           {StrId::STR_STATE_OFF, StrId::STR_STATE_TAP, StrId::STR_STATE_SWIPE,
@@ -349,14 +361,15 @@ inline const std::vector<SettingInfo>& settingsBaseList() {
         SettingInfo::Enum(StrId::STR_SHOW_READER_MENU, &CrossPointSettings::showReaderMenu,
                           {StrId::STR_STATE_OFF, StrId::STR_STATE_TAP, StrId::STR_STATE_SWIPE_UP}, "tapForReaderMenu",
                           StrId::STR_CAT_CONTROLS),
-        SettingInfo::Toggle(StrId::STR_FRONT_BTN_FOLLOW_ORIENTATION, &CrossPointSettings::frontButtonFollowOrientation,
-                            "frontButtonFollowOrientation", StrId::STR_CAT_CONTROLS),
+        // --- Shortcuts ---
+        // STR_CAT_SHORTCUTS is not one of the four tabs: these rows are reached through the
+        // Shortcuts row in Controls, which opens SettingsActivity on this category alone.
         SettingInfo::Enum(StrId::STR_LONG_PRESS_BEHAVIOR, &CrossPointSettings::longPressButtonBehavior,
                           {StrId::STR_LONG_PRESS_BEHAVIOR_OFF, StrId::STR_LONG_PRESS_BEHAVIOR_SKIP,
                            StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
-                          "longPressButtonBehavior", StrId::STR_CAT_CONTROLS),
+                          "longPressButtonBehavior", StrId::STR_CAT_SHORTCUTS),
         SettingInfo::Enum(StrId::STR_LONG_PRESS_MENU, &CrossPointSettings::longPressMenuFunction,
-                          buildLongPressMenuValues(), "longPressMenuFunction", StrId::STR_CAT_CONTROLS),
+                          buildLongPressMenuValues(), "longPressMenuFunction", StrId::STR_CAT_SHORTCUTS),
 #if FREEINK_CAP_TOUCH
         // Word Lookup keeps index 5 on every board -- it is Matcha's and already persisted.
         // Confirm is appended at 6 (upstream put it at 5) and only offered here, on touch
@@ -364,35 +377,34 @@ inline const std::vector<SettingInfo>& settingsBaseList() {
         SettingInfo::Enum(StrId::STR_SHORT_PWR_BTN, &CrossPointSettings::shortPwrBtn,
                           {StrId::STR_IGNORE, StrId::STR_SLEEP, StrId::STR_PAGE_TURN, StrId::STR_FORCE_REFRESH,
                            StrId::STR_FOOTNOTES, StrId::STR_WORD_LOOKUP, StrId::STR_CONFIRM},
-                          "shortPwrBtn", StrId::STR_CAT_CONTROLS),
+                          "shortPwrBtn", StrId::STR_CAT_SHORTCUTS),
 #else
         SettingInfo::Enum(StrId::STR_SHORT_PWR_BTN, &CrossPointSettings::shortPwrBtn,
                           {StrId::STR_IGNORE, StrId::STR_SLEEP, StrId::STR_PAGE_TURN, StrId::STR_FORCE_REFRESH,
                            StrId::STR_FOOTNOTES, StrId::STR_WORD_LOOKUP},
-                          "shortPwrBtn", StrId::STR_CAT_CONTROLS),
+                          "shortPwrBtn", StrId::STR_CAT_SHORTCUTS),
 #endif
         SettingInfo::Toggle(StrId::STR_PWR_BTN_FOOTNOTE_BACK, &CrossPointSettings::pwrBtnFootnoteBack,
-                            "pwrBtnFootnoteBack", StrId::STR_CAT_CONTROLS),
+                            "pwrBtnFootnoteBack", StrId::STR_CAT_SHORTCUTS),
         SettingInfo::Toggle(StrId::STR_BACK_SHORT_TO_FILE_BROWSER, &CrossPointSettings::backShortToFileBrowser,
-                            "backShortToFileBrowser", StrId::STR_CAT_CONTROLS),
+                            "backShortToFileBrowser", StrId::STR_CAT_SHORTCUTS),
 
         // --- System ---
-        SettingInfo::Value(
-            StrId::STR_TIME_TO_SLEEP, &CrossPointSettings::sleepTimeoutMinutes,
-            {CrossPointSettings::MIN_SLEEP_TIMEOUT_MINUTES, CrossPointSettings::MAX_SLEEP_TIMEOUT_MINUTES, 1},
-            "sleepTimeoutMinutes", StrId::STR_CAT_SYSTEM),
         SettingInfo::Toggle(StrId::STR_SHOW_HIDDEN_FILES, &CrossPointSettings::showHiddenFiles, "showHiddenFiles",
-                            StrId::STR_CAT_SYSTEM),
-        SettingInfo::Toggle(StrId::STR_LIBRARY_USE_METADATA, &CrossPointSettings::libraryUseMetadata,
-                            "libraryUseMetadata", StrId::STR_CAT_SYSTEM),
+                            StrId::STR_CAT_DISPLAY),
+        // STR_CAT_LIBRARY is not one of the four tabs: these rows are reached through the
+        // Library row in Display, which opens SettingsActivity on this category alone. Listed
+        // in the order they appear there, with the Rebuild action injected after the first.
         // Which screen the Library entry opens; see CrossPointSettings::LIBRARY_VIEW.
         SettingInfo::Enum(StrId::STR_LIBRARY_VIEW, &CrossPointSettings::libraryView,
                           {StrId::STR_LIBRARY_VIEW_COVERS, StrId::STR_LIBRARY_VIEW_LIST}, "libraryView",
-                          StrId::STR_CAT_DISPLAY),
+                          StrId::STR_CAT_LIBRARY),
         SettingInfo::Toggle(StrId::STR_REMOVE_READ_FROM_RECENTS, &CrossPointSettings::removeReadBooksFromRecents,
-                            "removeReadBooksFromRecents", StrId::STR_CAT_SYSTEM),
+                            "removeReadBooksFromRecents", StrId::STR_CAT_LIBRARY),
         SettingInfo::Toggle(StrId::STR_MOVE_FINISHED_TO_READ, &CrossPointSettings::moveFinishedToReadFolder,
-                            "moveFinishedToReadFolder", StrId::STR_CAT_SYSTEM),
+                            "moveFinishedToReadFolder", StrId::STR_CAT_LIBRARY),
+        SettingInfo::Toggle(StrId::STR_LIBRARY_USE_METADATA, &CrossPointSettings::libraryUseMetadata,
+                            "libraryUseMetadata", StrId::STR_CAT_LIBRARY),
 
         // OPDS download folder: persisted + web-exposed, but category-less so it
         // is hidden from the on-device Settings screen (edited via OPDS UI).
@@ -497,19 +509,19 @@ inline const std::vector<SettingInfo>& settingsBaseList() {
       for (auto it = v.begin(); it != v.end(); ++it) {
         if (it->nameId == StrId::STR_SHORT_PWR_BTN) {
           v.insert(it, SettingInfo::Toggle(StrId::STR_DBL_CLICK_PWR_LIGHT, &CrossPointSettings::doubleClickPwrLight,
-                                           "doubleClickPwrLight", StrId::STR_CAT_CONTROLS));
+                                           "doubleClickPwrLight", StrId::STR_CAT_SHORTCUTS));
           break;
         }
       }
     }
     // Only show tilt page turn setting when the QMI8658 IMU is present (X3)
     if (halTiltSensor.isAvailable()) {
-      // Insert after the short power button setting (end of Controls section)
+      // Insert after the short power button setting, which it belongs beside in Shortcuts
       for (auto it = v.begin(); it != v.end(); ++it) {
         if (it->nameId == StrId::STR_SHORT_PWR_BTN) {
           v.insert(it + 1, SettingInfo::Enum(StrId::STR_TILT_PAGE_TURN, &CrossPointSettings::tiltPageTurn,
                                              {StrId::STR_STATE_OFF, StrId::STR_NORMAL, StrId::STR_INVERTED},
-                                             "tiltPageTurn", StrId::STR_CAT_CONTROLS));
+                                             "tiltPageTurn", StrId::STR_CAT_SHORTCUTS));
           break;
         }
       }

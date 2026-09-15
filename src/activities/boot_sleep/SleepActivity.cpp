@@ -651,7 +651,8 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const bool pre
       bitmap.hasGreyscale() && (preserveBackground || SETTINGS.sleepScreenCoverFilter ==
                                                           CrossPointSettings::SLEEP_SCREEN_COVER_FILTER::NO_FILTER);
 
-  if (!renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY, preserveBackground)) {
+  if (!renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY, /*allowUpscale=*/false,
+                           /*whiteAsTransparent=*/preserveBackground)) {
     renderer.displayBuffer(HalDisplay::HALF_REFRESH);
     return;
   }
@@ -689,7 +690,8 @@ void SleepActivity::renderBitmapSleepScreen(const Bitmap& bitmap, const bool pre
       }
       if (!absolute || !preserveBackground) renderer.clearScreen(absolute ? 0xFF : 0x00);
       renderer.setRenderMode(plane);
-      if (!renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY, preserveBackground)) {
+      if (!renderer.drawBitmap(bitmap, x, y, pageWidth, pageHeight, cropX, cropY, /*allowUpscale=*/false,
+                               /*whiteAsTransparent=*/preserveBackground)) {
         ready = false;
         break;
       }
