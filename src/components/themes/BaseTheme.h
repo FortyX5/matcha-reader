@@ -125,6 +125,17 @@ struct ThemeMetrics {
   int capsuleRadius;
 };
 
+// How tall the tab band is on this device. Touch boards get a slightly taller band so the pills
+// stay finger-sized; the themes' own tabBarHeight is the button-board figure.
+//
+// Shared rather than per-screen: Settings drives its FreeInkUI tab bar from this, and Library and
+// the Insights screens pass it to drawTabBar. They sat 2px apart while only Settings knew about
+// the touch figure, which is visible when you put the screens side by side.
+constexpr int TOUCH_TAB_BAR_HEIGHT = 50;
+inline int tabBandHeight(const ThemeMetrics& metrics, const bool hasTouch) {
+  return hasTouch ? TOUCH_TAB_BAR_HEIGHT : metrics.tabBarHeight;
+}
+
 enum UIIcon {
   None = 0,
   Folder,
