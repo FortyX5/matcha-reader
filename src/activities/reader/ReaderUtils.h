@@ -54,13 +54,15 @@ inline void flushReadingStats(unsigned long& sessionStartMs, const bool force = 
   if (!force && elapsed < READING_STATS_FLUSH_MS) return;
   const uint16_t minutes = static_cast<uint16_t>(elapsed / 60000UL);
   if (minutes == 0) return;
-  // Local-midnight day boundary: shift by the user's display UTC offset so an evening
-  // session doesn't get logged against "tomorrow" (UTC midnight is 9am in Japan).
-  // gmtime_r into a stack tm: gmtime()'s shared static buffer is not safe with the
-  // render task also converting time (matches HalClock's usage).
-  const time_t now = HalClock::localEpoch(SETTINGS.clockUtcOffsetQ);
+  // Local-midnight day boundary, so an evening session doesn't get logged against
+  // "tomorrow" (UTC midnight is 9am in Japan). Reads the process TZ rule that
+  // timezones::applyToClock() installs, which is DST-aware and follows the zone the
+  // user picked in Settings > System > Clock -- clockUtcOffsetQ is legacy and no
+  // longer tracks that choice. localtime_r into a stack tm: the shared static buffer
+  // is not safe with the render task also converting time.
+  const time_t now = time(nullptr);
   struct tm t = {};
-  gmtime_r(&now, &t);
+  localtime_r(&now, &t);
   const bool loadOk = READING_STATS_STORE.loadFromFile();
   READING_STATS_STORE.addMinutes(static_cast<uint16_t>(t.tm_year + 1900), static_cast<uint8_t>(t.tm_mon + 1),
                                  static_cast<uint8_t>(t.tm_mday), minutes);

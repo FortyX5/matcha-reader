@@ -66,10 +66,6 @@ class HalClock {
   void restoreSystemTime() const;
   // Periodic (and after NTP sync): stash the current epoch to SD when valid.
   void persistSystemTime() const;
-  // Current epoch shifted by the user's display UTC offset (SETTINGS.clockUtcOffsetQ encoding:
-  // biased quarter hours, 48 = UTC+0). Use for DATE decisions (reading-stats day boundaries)
-  // so days flip at local midnight instead of UTC midnight.
-  static time_t localEpoch(uint8_t utcOffsetQuarterHoursBiased);
 
  private:
   bool writeTimeToRTC(uint8_t hour, uint8_t minute, uint8_t second);
