@@ -16,11 +16,13 @@
 namespace StatsWidgets {
 
 Today getToday() {
-  // gmtime_r, not gmtime: the shared static buffer is unsafe with the render task also
-  // converting time.
-  const time_t now = HalClock::localEpoch(SETTINGS.clockUtcOffsetQ);
+  // Local time via the process TZ rule installed by timezones::applyToClock(): DST-aware
+  // and following the zone chosen in Settings > System > Clock. localtime_r, not
+  // localtime: the shared static buffer is unsafe with the render task also converting
+  // time.
+  const time_t now = time(nullptr);
   struct tm t = {};
-  gmtime_r(&now, &t);
+  localtime_r(&now, &t);
   return {static_cast<uint16_t>(t.tm_year + 1900), static_cast<uint8_t>(t.tm_mon + 1), static_cast<uint8_t>(t.tm_mday),
           (t.tm_wday + 6) % 7};
 }
