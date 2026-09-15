@@ -13,6 +13,7 @@
 #include <cstring>
 #include <utility>
 
+#include "AboutActivity.h"
 #include "ButtonRemapActivity.h"
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
@@ -86,7 +87,7 @@ void SettingsActivity::rebuildSettingsLists() {
         controlsSettings.reserve(settings.size() + 3);
         break;
       case 3:
-        systemSettings.reserve(settings.size() + 8);
+        systemSettings.reserve(settings.size() + 9);
         break;
     }
   }
@@ -173,6 +174,7 @@ void SettingsActivity::rebuildSettingsLists() {
     }
   }
   if (!finishOnBack || selectedCategoryIndex == 3) {
+    systemSettings.push_back(SettingInfo::Action(StrId::STR_ABOUT, SettingAction::About));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser));
@@ -619,6 +621,13 @@ void SettingsActivity::toggleCurrentSetting() {
           startActivityForResult(std::move(activity), nullptr);
         } else {
           LOG_ERR("SETTINGS", "OOM: KeyboardLayoutsActivity");
+        }
+        break;
+      case SettingAction::About:
+        if (auto activity = makeUniqueNoThrow<AboutActivity>(renderer, mappedInput)) {
+          startActivityForResult(std::move(activity), nullptr);
+        } else {
+          LOG_ERR("SETTINGS", "OOM: AboutActivity");
         }
         break;
       case SettingAction::None:
