@@ -3,6 +3,7 @@
 #include <BoardConfig.h>
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
+#include <HalClock.h>
 #include <HalDisplay.h>
 #include <LibraryBuilder.h>
 #include <Logging.h>
@@ -16,6 +17,7 @@
 #include "AboutActivity.h"
 #include "ButtonRemapActivity.h"
 #include "ClearCacheActivity.h"
+#include "ClockSettingsActivity.h"
 #include "CrossPointSettings.h"
 #include "FontDownloadActivity.h"
 #include "HomeButtonSettingsActivity.h"
@@ -176,6 +178,12 @@ void SettingsActivity::rebuildSettingsLists() {
   if (!finishOnBack || selectedCategoryIndex == 3) {
     systemSettings.push_back(SettingInfo::Action(StrId::STR_ABOUT, SettingAction::About));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network));
+    // Offered on every board, unlike upstream, which shows it only where the RTC probe
+    // found hardware. Matcha keeps a real system clock without a DS3231 (restoreSystemTime
+    // plus an NTP resync on every WiFi connect), and the zone picked here is what decides
+    // reading-stats day boundaries -- see the localtime_r call in ReaderUtils. Gating the
+    // screen on an RTC would pin an X4 to UTC and log evening sessions against tomorrow.
+    systemSettings.push_back(SettingInfo::Action(StrId::STR_CLOCK, SettingAction::ClockSettings));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache));
@@ -568,6 +576,13 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::CustomiseStatusBar:
         startActivityForResult(std::make_unique<StatusBarSettingsActivity>(renderer, mappedInput), resultHandler);
+        break;
+      case SettingAction::ClockSettings:
+        if (auto activity = makeUniqueNoThrow<ClockSettingsActivity>(renderer, mappedInput)) {
+          startActivityForResult(std::move(activity), resultHandler);
+        } else {
+          LOG_ERR("SETTINGS", "OOM: ClockSettingsActivity");
+        }
         break;
       case SettingAction::KOReaderSync:
         startActivityForResult(std::make_unique<KOReaderSettingsActivity>(renderer, mappedInput), resultHandler);
