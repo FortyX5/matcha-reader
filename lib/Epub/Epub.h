@@ -39,10 +39,14 @@ class Epub {
   // Set by generateThumbBmp() via the converter's outUnsupported flag; see coverUnsupported().
   mutable bool coverUnsupported_ = false;
 
+  // Two orthogonal sets of optional arguments meet here. shouldCancel/cancelCtx let a long parse
+  // abort on a button press (the cover loader). metadataOnly/sharedZip let the library indexer
+  // read title and author without the spine, reusing one open ZipFile across every book.
   bool findContentOpfFile(std::string* contentOpfFile, BmpConvertCancelFn shouldCancel = nullptr,
-                          void* cancelCtx = nullptr) const;
+                          void* cancelCtx = nullptr, ZipFile* sharedZip = nullptr) const;
   bool parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, bool writeSpineEntries = true,
-                       BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr);
+                       BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr, bool metadataOnly = false,
+                       ZipFile* sharedZip = nullptr);
   bool parseTocNcxFile(BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr) const;
   bool parseTocNavFile(BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr) const;
   void discoverCssFilesFromZip();
@@ -57,6 +61,7 @@ class Epub {
   std::string& getBasePath() { return contentBasePath; }
   bool load(bool buildIfMissing = true, bool skipLoadingCss = false, BmpConvertCancelFn shouldCancel = nullptr,
             void* cancelCtx = nullptr);
+  bool loadMetadata(std::string& title, std::string& author);
   bool clearCache() const;
   void setupCacheDir() const;
   const std::string& getCachePath() const;

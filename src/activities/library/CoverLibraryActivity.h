@@ -15,7 +15,7 @@
 #include "components/UITheme.h"  // TabInfo, Rect
 #include "util/ButtonNavigator.h"
 
-class RecentBooksActivity final : public Activity {
+class CoverLibraryActivity final : public Activity {
  private:
   ButtonNavigator buttonNavigator;
 
@@ -295,7 +295,7 @@ class RecentBooksActivity final : public Activity {
   void showBookStats(const std::string& path, const std::string& title);
 
  public:
-  explicit RecentBooksActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
+  explicit CoverLibraryActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
       : Activity("RecentBooks", renderer, mappedInput) {}
   void onEnter() override;
   void onExit() override;

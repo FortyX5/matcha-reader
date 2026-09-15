@@ -75,6 +75,10 @@ visit, with progress as a badge. Manga sits beside EPUBs. A **Shelves** tab list
 
 <p align="center"><img src="docs/images/screenshots/library.png" width="260" alt="Library grid with manga and EPUB covers side by side"></p>
 
+CrossPoint's own library screen is still here if you prefer it: an indexed list with title and author search across
+thousands of books, sorted by title, author or when they were added. **Settings → Display → Library** gathers the library
+settings on one screen, starting with the view switch: **Matcha Covers** (the default) or **CrossPoint List**.
+
 ### Reading stats
 
 Streak, minutes this week, books finished, total time, and a calendar of the days you read. Recorded as you go, every few minutes and again when you close a book, so a flat battery costs you minutes rather than the whole session.

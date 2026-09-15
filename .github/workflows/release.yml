@@ -44,6 +44,21 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          # The tag must name the version the tagged commit actually carries. Upstream compares a
+          # prerelease against "<version>rc"; this fork tags prereleases with their full version
+          # (1.6.0-rc-2) and platformio.ini holds the same string, so the two compare as-is.
+          # Catches a release cut from the wrong commit, where platformio.ini still reads the
+          # previous version.
+          version="${RELEASE_TAG#v}"
+          configured_version="$(sed -n 's/^version = //p' platformio.ini | head -n1)"
+          if [ "$version" != "$configured_version" ]; then
+            echo "Tag $version does not match platformio.ini version $configured_version" >&2
+            exit 1
+          fi
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
@@ -73,7 +88,9 @@ jobs:
           restore-keys: pio-${{ runner.os }}-
 
       - name: Build CrossPoint
-        run: pio run -e ${{ matrix.pio_env }} -j1
+        env:
+          PIO_ENV: ${{ github.event.release.prerelease && matrix.rc_env || matrix.release_env }}
+        run: CROSSPOINT_RC_HASH="$(git rev-parse --short=7 HEAD)" pio run -e "$PIO_ENV" -j1
 
       - name: Name release asset
         run: |
