@@ -178,11 +178,14 @@ void SettingsActivity::rebuildSettingsLists() {
   if (!finishOnBack || selectedCategoryIndex == 3) {
     systemSettings.push_back(SettingInfo::Action(StrId::STR_ABOUT, SettingAction::About));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network));
-    // Clock configuration only exists where the RTC probe found hardware; on
-    // clockless boards there is nothing to set.
-    if (halClock.isAvailable()) {
-      systemSettings.push_back(SettingInfo::Action(StrId::STR_CLOCK, SettingAction::ClockSettings));
-    }
+    // Offered on every board, unlike upstream, which shows it only where the RTC probe
+    // found hardware. Matcha keeps a real system clock without a DS3231 (restoreSystemTime
+    // plus an NTP resync on every WiFi connect), and the zone picked here is what decides
+    // reading-stats day boundaries -- see the localtime_r call in ReaderUtils. Gating the
+    // screen on an RTC would pin an X4 to UTC and log evening sessions against tomorrow.
+    // Format and Show in Header stay inert on those boards; both display paths check
+    // halClock.isAvailable() themselves.
+    systemSettings.push_back(SettingInfo::Action(StrId::STR_CLOCK, SettingAction::ClockSettings));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache));
