@@ -3,6 +3,7 @@
 #include <HalClock.h>
 #include <I18n.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -156,7 +157,7 @@ int drawTileGrid(const GfxRenderer& renderer, const int x, const int y, const in
 }
 
 int drawMonthCalendar(const GfxRenderer& renderer, const int x, const int y, const int w, const uint16_t calYear,
-                      const uint8_t calMonth, const Today& today, const MonthSource& source) {
+                      const uint8_t calMonth, const Today& today, const MonthSource& source, MonthNav* navOut) {
   const int smallLH = renderer.getLineHeight(SMALL_FONT_ID);
   const int dim = daysInMonth(calYear, calMonth);
   const int firstDow = firstDowOfMonth(calYear, calMonth);
@@ -189,6 +190,19 @@ int drawMonthCalendar(const GfxRenderer& renderer, const int x, const int y, con
   renderer.drawLine(rChevX + chevSz, chevCenterY, rChevX, chevCenterY + chevSz, true);
   renderer.drawLine(rChevX - 1, chevCenterY - chevSz, rChevX + chevSz - 1, chevCenterY, true);
   renderer.drawLine(rChevX + chevSz - 1, chevCenterY, rChevX - 1, chevCenterY + chevSz, true);
+
+  if (navOut) {
+    // Centred on each glyph rather than hugging it: the chevron is 6px wide, which no finger can
+    // hit reliably. Clamped to the card so the left target cannot start off-screen at x=0.
+    constexpr int half = MONTH_CHEVRON_TOUCH_SIZE / 2;
+    const int leftCx = x + CARD_PAD + chevSz / 2;
+    const int rightCx = rChevX + chevSz / 2;
+    const int top = chevCenterY - half;
+    const int leftX = std::max(x, leftCx - half);
+    const int rightX = std::min(x + w - MONTH_CHEVRON_TOUCH_SIZE, rightCx - half);
+    navOut->prev = Rect{leftX, top, MONTH_CHEVRON_TOUCH_SIZE, MONTH_CHEVRON_TOUCH_SIZE};
+    navOut->next = Rect{rightX, top, MONTH_CHEVRON_TOUCH_SIZE, MONTH_CHEVRON_TOUCH_SIZE};
+  }
 
   // Days read count
   const int daysReadMonth = source.daysReadInMonth(source.ctx, calYear, calMonth);
