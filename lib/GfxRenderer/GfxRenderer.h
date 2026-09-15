@@ -109,6 +109,10 @@ class GfxRenderer {
   mutable int _stripY0 = 0;
   mutable int _stripRows = 0;
   mutable bool _stripActive = false;
+  mutable int clipLeft_ = 0;
+  mutable int clipTop_ = 0;
+  mutable int clipRight_ = 32767;
+  mutable int clipBottom_ = 32767;
 
   // CJK UI font fallback map: primary (built-in, Latin-only) UI font id -> a
   // size-matched SD-card font id that carries CJK glyphs. When a string drawn
@@ -307,6 +311,13 @@ class GfxRenderer {
   int getWriteRows() const { return _stripActive ? _stripRows : panelHeight; }
 
   // Drawing
+  // UI drawing clip in logical coordinates; independent of panel orientation.
+  void setClipRect(int x, int y, int width, int height) const {
+    clipLeft_ = x;
+    clipTop_ = y;
+    clipRight_ = x + width;
+    clipBottom_ = y + height;
+  }
   void drawPixel(int x, int y, bool state = true) const;
   void drawLine(int x1, int y1, int x2, int y2, bool state = true) const;
   void drawLine(int x1, int y1, int x2, int y2, int lineWidth, bool state) const;
@@ -334,7 +345,7 @@ class GfxRenderer {
   // (manga panel zoom). Only wired through the 1-bit path -- the grayscale path always shrink-fits.
   void drawIcon(const uint8_t bitmap[], int x, int y, int size) const;
   bool drawBitmap(const Bitmap& bitmap, int x, int y, int maxWidth, int maxHeight, float cropX = 0, float cropY = 0,
-                  bool allowUpscale = false) const;
+                  bool allowUpscale = false, bool whiteAsTransparent = false) const;
   bool drawBitmap1Bit(const Bitmap& bitmap, int x, int y, int maxWidth, int maxHeight, bool allowUpscale = false) const;
   // Counter-invert content images in the logical framebuffer so output-level
   // dark mode leaves their original polarity unchanged.

@@ -2897,6 +2897,7 @@ bool ChapterHtmlSlimParser::beginParse() {
   blockStyleStack.reserve(8);
   blockStyleStack.push_back(rootBlockStyle);
 
+  listDepth = 0;
   tableDepth = 0;
   insideTableCell = false;
   tableRowStacked = false;
