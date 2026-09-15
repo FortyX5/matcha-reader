@@ -22,8 +22,13 @@ class HalClock {
   // Call after BoardConfig has selected the active device.
   void begin();
 
-  // True if an RTC is present on this device
+  // True if an RTC chip is present on this device. Use hasTime() to decide whether a time
+  // can be shown -- these differ on RTC-less boards, where the system clock still works.
   bool isAvailable() const { return _available; }
+
+  // True when a time can be reported at all: from the RTC, or from the system clock that
+  // restoreSystemTime() and the NTP resync keep honest on boards without one.
+  bool hasTime() const { return _available || systemTimeValid(); }
 
   // Set the POSIX TZ rule (e.g. "CET-1CEST,M3.5.0,M10.5.0/3") applied to every
   // read. nullptr/empty falls back to UTC. Drops the read cache so the change

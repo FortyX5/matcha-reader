@@ -463,7 +463,7 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   // header band (SETTINGS.clockShowInHeader).
   char clockText[10] = {0};
   int16_t clockWidth = 0;
-  if (SETTINGS.clockShowInHeader && halClock.isAvailable() &&
+  if (SETTINGS.clockShowInHeader && halClock.hasTime() &&
       halClock.formatTime(clockText, sizeof(clockText), SETTINGS.clockFormat == 1)) {
     clockWidth = ui.target.measureText(fui::GfxRendererTarget::FONT_SMALL, clockText, tokens.smallText).width;
   } else {
@@ -992,7 +992,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
                                    &orientedMarginLeft);
   const auto sb = SETTINGS.statusBarSpec();
-  const bool showStatusBarTextLane = sb.textLaneVisible(halClock.isAvailable());
+  const bool showStatusBarTextLane = sb.textLaneVisible(halClock.hasTime());
 
   // Draw Progress Text
   const auto screenHeight = renderer.getScreenHeight();
@@ -1071,7 +1071,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
   }
 
   // Draw Clock (any board whose RTC probe succeeded)
-  if (sb.showsClock() && halClock.isAvailable()) {
+  if (sb.showsClock() && halClock.hasTime()) {
     char timeBuf[9];
     if (halClock.formatTime(timeBuf, sizeof(timeBuf), sb.clock12h)) {
       int clockTextWidth = renderer.getTextWidth(SMALL_FONT_ID, timeBuf);

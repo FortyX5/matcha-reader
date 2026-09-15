@@ -451,8 +451,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     bool showsProgressBar() const { return progressBarMode != HIDE_PROGRESS; }
     bool showsTitle() const { return titleMode != HIDE_TITLE; }
     bool showsClock() const { return clockMode != STATUS_BAR_CLOCK_HIDE; }
-    // Visibility of the text lane. Clock hardware presence is the caller's
-    // concern: pass halClock.isAvailable(), or true for layout reservation.
+    // Visibility of the text lane. Whether a clock can be read is the caller's
+    // concern: pass halClock.hasTime(), or true for layout reservation.
     bool textLaneVisible(bool clockAvailable) const {
       return showChapterPageCount || showBookProgressPercent || showsTitle() || showBattery ||
              (showsClock() && clockAvailable);

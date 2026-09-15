@@ -72,7 +72,7 @@ StatusBarSettingsActivity::StatusBarSettingsActivity(GfxRenderer& renderer, Mapp
 void StatusBarSettingsActivity::onEnter() {
   UiListActivity::onEnter();
 
-  visibleItemCount = halClock.isAvailable() ? FULL_MENU_ITEMS : BASE_MENU_ITEMS;
+  visibleItemCount = halClock.hasTime() ? FULL_MENU_ITEMS : BASE_MENU_ITEMS;
 
   // Clamp statusBarProgressBar and statusBarTitle in case of corrupt/migrated data
   if (SETTINGS.statusBarProgressBar >= PROGRESS_BAR_ITEMS) {
