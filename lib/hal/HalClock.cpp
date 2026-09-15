@@ -210,9 +210,3 @@ void HalClock::persistSystemTime() const {
     f.write(reinterpret_cast<const uint8_t*>(buf), strlen(buf));
   }
 }
-
-time_t HalClock::localEpoch(uint8_t utcOffsetQuarterHoursBiased) {
-  if (utcOffsetQuarterHoursBiased > 104) utcOffsetQuarterHoursBiased = 104;  // same clamp as formatTime
-  const int offsetQuarterHours = static_cast<int>(utcOffsetQuarterHoursBiased) - 48;
-  return time(nullptr) + static_cast<time_t>(offsetQuarterHours) * 15 * 60;
-}
