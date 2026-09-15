@@ -17,7 +17,9 @@
 class Activity;    // forward declaration
 class RenderLock;  // forward declaration
 
-enum class HomeMenuItem { NONE, FILE_BROWSER, RECENTS, OPDS_BROWSER, FILE_TRANSFER, READING_STATS, SETTINGS_MENU };
+// LIBRARY covers both views: the cover grid and upstream's indexed list, chosen by
+// SETTINGS.libraryView. READING_STATS is this fork's own entry.
+enum class HomeMenuItem { NONE, FILE_BROWSER, LIBRARY, OPDS_BROWSER, FILE_TRANSFER, READING_STATS, SETTINGS_MENU };
 
 /**
  * ActivityManager
@@ -86,7 +88,7 @@ class ActivityManager {
   void goToUsbDrive();
   void goToSettings();
   void goToFileBrowser(std::string path = {});
-  void goToRecentBooks();
+  void goToLibrary();
   void goToBrowser();
   void goToReader(std::string path, bool allowFastInitialRefresh = false);
   void goToSleep(bool fromTimeout = false);

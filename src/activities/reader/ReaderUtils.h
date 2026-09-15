@@ -144,7 +144,8 @@ inline PageTurnResult detectPageTurnImpl(const MappedInputManager& input, const 
       tiltPrev || (pageButtonTriggered(MappedInputManager::Button::PageBack) || pageButtonTriggered(prevButton));
   const bool powerTurn = SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::PAGE_TURN &&
                          input.wasReleased(MappedInputManager::Button::Power);
-  const bool next = tiltNext || pageButtonTriggered(MappedInputManager::Button::PageForward) || powerTurn ||
+  const bool next = input.homeButtonAction() == HomeButtonAction::NextPage || tiltNext ||
+                    pageButtonTriggered(MappedInputManager::Button::PageForward) || powerTurn ||
                     pageButtonTriggered(nextButton);
   if (reversed) return {next, prev, tiltPrev || tiltNext};
   return {prev, next, tiltPrev || tiltNext};
@@ -261,9 +262,8 @@ inline bool isTouchMenuTap(const GfxRenderer& renderer, const MappedInputManager
   return x >= zoneWidth && x < width - zoneWidth && y >= zoneHeight && y < height - zoneHeight;
 }
 
-// Reader menu opens on the menu edge-swipe or a center-third tap. On home-key
-// boards a long press of the capacitive key runs the user-selected long-press
-// function instead (SETTINGS.longPressMenuFunction), not the menu.
+// Reader menu opens on the menu edge-swipe or a center-third tap. Home-key
+// actions are configured separately from screen gestures.
 // Menu gestures honor showReaderMenu independently of touchReaderControls,
 // which only gates page-turn touch zones in detectTouchPageTurn().
 inline bool isTouchMenuGesture(const GfxRenderer& renderer, const MappedInputManager& input) {
