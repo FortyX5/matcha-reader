@@ -1,5 +1,6 @@
 #pragma once
 #include "activities/Activity.h"
+#include "components/StatsWidgets.h"
 #include "components/themes/BaseTheme.h"
 #include "util/ButtonNavigator.h"
 
@@ -19,11 +20,17 @@ class ReadingStatsActivity final : public Activity {
   // button out under the calendar and loop() hit-tests it; it scrolls with the
   // content, so the rect is recomputed every frame. Empty on button boards.
   Rect detailsButton{};
+  // Tap targets for the calendar's month chevrons. Month stepping is bound to
+  // ScreenLeft/ScreenRight, which resolve to FRONT buttons -- keys a touch board
+  // does not have, so the arrows were decoration there and only the current month
+  // could be viewed. Recomputed every render, like detailsButton.
+  StatsWidgets::MonthNav monthNav{};
   // Calendar month navigation
   uint16_t calYear = 0;
   uint8_t calMonth = 1;
 
   void openLanguageStats();
+  bool stepMonthFromTap();
 
  public:
   explicit ReadingStatsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)

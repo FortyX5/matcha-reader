@@ -50,6 +50,24 @@ void ReadingStatsActivity::openLanguageStats() {
   startActivityForResult(std::make_unique<LanguageStatsActivity>(renderer, mappedInput), [](const ActivityResult&) {});
 }
 
+// Shared by both stats screens in spirit, but each owns its own calendar rect.
+bool ReadingStatsActivity::stepMonthFromTap() {
+  if (monthNav.next.width == 0) return false;
+  int tx = 0;
+  int ty = 0;
+  if (!mappedInput.wasScreenTapped(tx, ty)) return false;
+  const auto hit = [&](const Rect& r) { return tx >= r.x && tx < r.x + r.width && ty >= r.y && ty < r.y + r.height; };
+  if (hit(monthNav.prev)) {
+    StatsWidgets::stepMonth(calYear, calMonth, -1);
+  } else if (hit(monthNav.next)) {
+    StatsWidgets::stepMonth(calYear, calMonth, +1);
+  } else {
+    return false;
+  }
+  requestUpdate();
+  return true;
+}
+
 void ReadingStatsActivity::loop() {
   // Tap leaves Insights, hold goes home; same gesture as the language screen.
   if (backLongPressFired) {
@@ -84,6 +102,9 @@ void ReadingStatsActivity::loop() {
       return;
     }
   }
+  // Tapping a chevron steps the month, the touch equivalent of the Left/Right keys
+  // below -- which resolve to front buttons a touch board does not have.
+  if (stepMonthFromTap()) return;
   // Left/Right to navigate calendar months
   if (mappedInput.wasReleased(MappedInputManager::Button::ScreenLeft)) {
     StatsWidgets::stepMonth(calYear, calMonth, -1);
@@ -177,7 +198,7 @@ void ReadingStatsActivity::render(RenderLock&&) {
 
   // ==================== CALENDAR ====================
   const StatsWidgets::MonthSource source{nullptr, overallMonthStatus, overallDaysReadInMonth};
-  y += StatsWidgets::drawMonthCalendar(renderer, cardX, y, cardW, calYear, calMonth, today, source);
+  y += StatsWidgets::drawMonthCalendar(renderer, cardX, y, cardW, calYear, calMonth, today, source, &monthNav);
 
   // ==================== DETAILS BUTTON ====================
   // Touch boards only. They have no front buttons, so the Confirm the hints row
