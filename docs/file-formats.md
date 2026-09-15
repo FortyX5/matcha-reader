@@ -485,6 +485,24 @@ Only kanji-bearing base texts are stored. The file is capped at 16KB; overflow p
 are silently dropped (the glossary is best-effort). Distinct readings for the same
 base text may appear as separate records; lookup joins them with '・'.
 
+## LIBX — cover grid index (`.crosspoint/covers.idx`)
+
+Written and read by `src/activities/library/CoverLibraryActivity.cpp`, for the Matcha Covers
+library view. One fixed-size record per book seen by a previous scan, so a visit can skip the
+file open per EPUB and the directory listing per manga folder that checking for a cover costs.
+Carries no titles or paths: those already live in the persisted recents list.
+
+Distinct from the CLX1 index below, which serves the CrossPoint list view. The two views keep
+separate indexes and separate filenames — sharing a path means each write destroys the other's
+index, so both rebuild on every switch between the views.
+
+`"LIBX"` magic, `uint8_t` version (currently 3), `uint32_t` entry count (rejected above 2048),
+then that many 15-byte records: `pathHash` (`uint32_t`), `fileSize` (`uint32_t`, the size of
+`panels.idx` for a manga folder), `modifiedStamp` (`uint32_t`, packed FAT date/time, 0 when the
+driver has none), `thumbHeight` (`uint16_t`, the cover height the thumbnail was verified for),
+and `flags` (`uint8_t`: bit 0 a verified thumbnail is present, bit 1 the book declares no cover).
+A mismatched magic, version or count is treated as no index at all and the scan runs in full.
+
 ## CLX1 — library index (`.crosspoint/library.idx`)
 
 Written by `lib/LibraryIndex/LibraryBuilder.cpp`, read by `LibraryIndexFile`. One

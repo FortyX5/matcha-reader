@@ -29,6 +29,9 @@ enum class SettingAction {
   TextSettings,
   KeyboardLayouts,
   HomeButton,
+  LibrarySettings,
+  SleepSettings,
+  ShortcutsSettings,
 };
 
 struct SettingInfo {
@@ -206,6 +209,13 @@ class SettingsActivity final : public UiTabListActivity {
   // Rotate Panels, Reading Orientation and Customise Status Bar all still apply and stay.
   bool mangaMode = false;
 
+  // Single-category mode. The Library and Sleep rows in Display, and Shortcuts in Controls, open
+  // this same screen showing only their own category, none of which is one of the four tabs.
+  // STR_NONE_OPT means the ordinary tabbed screen. Everything else -- row building, value text, the option popup,
+  // toggles, actions -- is the usual path, so a sub-screen costs a list rather than an activity.
+  StrId submenuCategory = StrId::STR_NONE_OPT;
+  bool isSubmenu() const { return submenuCategory != StrId::STR_NONE_OPT; }
+
   int selectedCategoryIndex = 0;  // Currently selected category
   int settingsCount = 0;
 
@@ -214,6 +224,7 @@ class SettingsActivity final : public UiTabListActivity {
   std::vector<SettingInfo> readerSettings;
   std::vector<SettingInfo> controlsSettings;
   std::vector<SettingInfo> systemSettings;
+  std::vector<SettingInfo> submenuSettings;
   const std::vector<SettingInfo>* currentSettings = nullptr;
 
   bool preserveQuickResumeTimeoutOn = false;
@@ -239,9 +250,11 @@ class SettingsActivity final : public UiTabListActivity {
 
   // --- UiTabListActivity contract ---
   int listCount() const override { return settingsCount; }
-  int tabCount() const override { return categoryCount; }
-  int activeTab() const override { return selectedCategoryIndex; }
-  const char* tabLabel(int index) const override { return I18N.get(categoryNames[index]); }
+  int tabCount() const override { return isSubmenu() ? 1 : categoryCount; }
+  int activeTab() const override { return isSubmenu() ? 0 : selectedCategoryIndex; }
+  const char* tabLabel(int index) const override {
+    return I18N.get(isSubmenu() ? submenuCategory : categoryNames[index]);
+  }
   void buildScreen(UiScreen& screen) override;
   void activateIndex(int index) override;
   void onTabAction(int index) override;
@@ -285,7 +298,8 @@ class SettingsActivity final : public UiTabListActivity {
                             const bool finishOnBack = false, const bool japaneseBook = false,
                             std::string dictionaryLanguage = {}, const bool showReaderToggles = false,
                             const bool verticalTextEnabled = false, const bool furiganaEnabled = false,
-                            const bool mangaMode = false, const bool hideMangaOnlySettings = false)
+                            const bool mangaMode = false, const bool hideMangaOnlySettings = false,
+                            const StrId submenuCategory = StrId::STR_NONE_OPT)
       : UiTabListActivity("Settings", renderer, mappedInput),
         initialCategory(initialCategory),
         finishOnBack(finishOnBack),
@@ -295,6 +309,7 @@ class SettingsActivity final : public UiTabListActivity {
         verticalTextState(verticalTextEnabled),
         furiganaState(furiganaEnabled),
         mangaMode(mangaMode),
+        submenuCategory(submenuCategory),
         hideMangaOnlySettings(hideMangaOnlySettings) {}
   void onEnter() override;
   void onExit() override;
