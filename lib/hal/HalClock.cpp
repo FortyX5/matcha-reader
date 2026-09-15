@@ -78,7 +78,16 @@ void HalClock::setTimezone(const char* posixTz) {
 }
 
 bool HalClock::localTime(struct tm& out) const {
-  if (!_available) return false;
+  if (!_available) {
+    // No DS3231 (X4). The system clock is still real here: restoreSystemTime() seeds it at
+    // boot and WifiSelectionActivity re-syncs it on every connect, so report that rather
+    // than nothing. No caching -- time(nullptr) costs no bus traffic, which is the only
+    // thing the cache below exists to avoid.
+    if (!systemTimeValid()) return false;
+    const time_t now = time(nullptr);
+    localtime_r(&now, &out);
+    return true;
+  }
 
   const unsigned long now = millis();
   if (_lastPollMs == 0 || (now - _lastPollMs) >= CLOCK_POLL_MS) {
