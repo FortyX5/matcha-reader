@@ -43,6 +43,7 @@
 #include "platform/UsbSerialJtagHandoff.h"
 #include "util/ButtonNavigator.h"
 #include "util/ScreenshotUtil.h"
+#include "util/Timezones.h"
 
 GfxRenderer renderer(display);
 MappedInputManager mappedInputManager(gpio, renderer);
@@ -484,6 +485,11 @@ void setup() {
     SETTINGS.readerMenuStyle = CrossPointSettings::READER_MENU_TOOLBAR;
   }
   SETTINGS.loadFromFile();
+
+  // Push the saved timezone's POSIX rule into the clock (migrating the legacy
+  // UTC-offset setting on first boot after the update). Before the restore below,
+  // so the epoch it seeds is read back in the user's zone rather than the default.
+  timezones::applyToClock();
 
   // Seed the system clock on RTC-less devices (X4): after a full power-off, time(nullptr)
   // restarts at the 1970 epoch, which put reading stats and the Insights calendar in January
