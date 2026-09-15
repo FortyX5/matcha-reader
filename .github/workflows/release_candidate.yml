@@ -54,13 +54,29 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: pio-${{ runner.os }}-
+          key: pio6119s481-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio6119s481-${{ runner.os }}-
 
       - name: Extract env
         run: |
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
           echo "BRANCH_SUFFIX=${GITHUB_REF_NAME#release/}" >> $GITHUB_ENV
+
+      - name: Pin the Core inside the platform's penv
+        run: |
+          set -euo pipefail
+          # platform-espressif32 runs the second stage of a custom_sdkconfig build through the
+          # PlatformIO Core in its OWN penv, which penv_setup.py installs as
+          # `pioarduino>=6.1.19` with --upgrade -- so it drifts past the Core pinned above.
+          # 6.1.19 pins tool-scons 4.8.1 (the platform's own pin), 6.2.0 pins 4.11.1, and both
+          # unpack into ~/.platformio/packages/tool-scons: the second install replaces the
+          # package under a running build and the link step dies in the half-swapped directory
+          # ("No module named 'SCons.Tool.FortranCommon'"). Pinning the penv keeps one SCons.
+          pio pkg install -e ${{ matrix.pio_env }}
+          penv_python="$HOME/.platformio/penv/bin/python"
+          test -x "$penv_python" || { echo "No penv Python at $penv_python"; exit 1; }
+          uv pip install --python "$penv_python" "pioarduino==6.1.19"
+          "$penv_python" -c "import platformio; print('penv Core', platformio.VERSION)"
 
       - name: Build CrossPoint Release Candidate
         env:
