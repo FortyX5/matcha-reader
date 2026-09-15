@@ -9,9 +9,6 @@
 
 namespace fui = freeink::ui;
 
-namespace {
-}
-
 UiTabListActivity::UiTabListActivity(const char* name, GfxRenderer& renderer, MappedInputManager& mappedInput,
                                      const bool wantsTouchLongPress)
     : UiListActivity(name, renderer, mappedInput, wantsTouchLongPress) {}
