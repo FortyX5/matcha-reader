@@ -77,8 +77,8 @@ jobs:
           # Bump the prefix whenever the Core pin moves: a ~/.platformio restored from a
           # run on a different Core carries that Core's tool-scons, which then fights the
           # platform's over the same package directory.
-          key: pio6119-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: pio6119-${{ runner.os }}-
+          key: pio6119s481-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio6119s481-${{ runner.os }}-
 
       - name: Install cppcheck runtime dependency
         run: |
@@ -146,8 +146,29 @@ jobs:
           # Bump the prefix whenever the Core pin moves: a ~/.platformio restored from a
           # run on a different Core carries that Core's tool-scons, which then fights the
           # platform's over the same package directory.
-          key: pio6119-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
-          restore-keys: pio6119-${{ runner.os }}-
+          key: pio6119s481-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio6119s481-${{ runner.os }}-
+
+      - name: Pin the Core inside the platform's penv
+        run: |
+          set -euo pipefail
+          # platform-espressif32 runs the second stage of a custom_sdkconfig build through a
+          # SECOND PlatformIO Core -- the one in its own penv, installed by penv_setup.py as
+          # `pioarduino>=6.1.19` with --upgrade, so it drifts to whatever is newest regardless
+          # of the Core pinned above. Core 6.1.19 pins tool-scons 4.8.1 (the platform's own
+          # pin); 6.2.0 pins 4.11.1. Both unpack into ~/.platformio/packages/tool-scons, so the
+          # penv Core replaces the package under a build already running against it and the
+          # link step dies inside the half-swapped directory:
+          #   ModuleNotFoundError: No module named 'SCons.Tool.FortranCommon'
+          # That is why only `default` and `sticky` ever failed: they are the only envs
+          # extending firmware_tuned* and so the only ones that reach the second stage.
+          # pkg install creates the penv (platform.configure_default_packages); pinning it
+          # afterwards leaves >=6.1.19 satisfied, so the next run installs nothing.
+          pio pkg install -e ${{ matrix.env }}
+          penv_python="$HOME/.platformio/penv/bin/python"
+          test -x "$penv_python" || { echo "No penv Python at $penv_python"; exit 1; }
+          uv pip install --python "$penv_python" "pioarduino==6.1.19"
+          "$penv_python" -c "import platformio; print('penv Core', platformio.VERSION)"
 
       - name: Build ${{ matrix.env }} firmware
         run: |
