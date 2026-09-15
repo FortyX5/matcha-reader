@@ -45,8 +45,8 @@ class Epub {
   bool findContentOpfFile(std::string* contentOpfFile, BmpConvertCancelFn shouldCancel = nullptr,
                           void* cancelCtx = nullptr, ZipFile* sharedZip = nullptr) const;
   bool parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, bool writeSpineEntries = true,
-                       BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr,
-                       bool metadataOnly = false, ZipFile* sharedZip = nullptr);
+                       BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr, bool metadataOnly = false,
+                       ZipFile* sharedZip = nullptr);
   bool parseTocNcxFile(BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr) const;
   bool parseTocNavFile(BmpConvertCancelFn shouldCancel = nullptr, void* cancelCtx = nullptr) const;
   void discoverCssFilesFromZip();
