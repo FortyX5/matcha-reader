@@ -32,6 +32,7 @@ enum class SettingAction {
   LibrarySettings,
   SleepSettings,
   ShortcutsSettings,
+  About,
 };
 
 struct SettingInfo {
