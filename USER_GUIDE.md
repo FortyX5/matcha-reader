@@ -21,7 +21,7 @@ Welcome to the **CrossPoint** firmware. This guide outlines the hardware control
     - [3.1 Home Screen](#31-home-screen)
     - [3.2 Reading Mode](#32-reading-mode)
     - [3.3 Browse Files Screen](#33-browse-files-screen)
-    - [3.4 Recent Books Screen](#34-recent-books-screen)
+    - [3.4 Library Screen](#34-library-screen)
     - [3.5 File Transfer Screen](#35-file-transfer-screen)
     - [3.5.1 Calibre Wireless Transfers](#351-calibre-wireless-transfers)
       - [Installing the Plugin in Calibre](#installing-the-plugin-in-calibre)
@@ -102,7 +102,7 @@ The X4 Pro has a built-in frontlight with adjustable brightness and warmth. It i
 > [!NOTE]
 > Frontlight brightness and warmth are intentionally not listed in **[Display Settings](#361-display)** — the swipe panel is the only place to adjust them. The on/off state can also be toggled with the Power-button double-click above.
 
-If the frontlight doesn't come back on after the device wakes from sleep, check **Restore Light on Wake** in **[Display Settings](#361-display)** (on by default). Turning it off is intentional if you'd rather have the light stay off on wake and switch it on yourself each time — but it's easy to forget you changed it.
+If the frontlight doesn't come back on after the device wakes from sleep, check **Restore Light on Wake** in **Settings → Display → Sleep** (on by default). Turning it off is intentional if you'd rather have the light stay off on wake and switch it on yourself each time — but it's easy to forget you changed it.
 
 ---
 
@@ -128,7 +128,7 @@ Upon turning the device on for the first time, you will be placed on the **[Home
 
 ### 3.1 Home Screen
 
-The Home screen is the main entry point to the firmware. From here you can navigate to **[Reading Mode](#4-reading-mode)** with the most recently read book, the **[Browse Files](#33-browse-files-screen)** screen, the **[Recent Books](#34-recent-books-screen)** screen, the **[File Transfer](#35-file-transfer-screen)** screen, or **[Settings](#36-settings)**.
+The Home screen is the main entry point to the firmware. From here you can navigate to **[Reading Mode](#4-reading-mode)** with the most recently read book, **[Browse Files](#33-browse-files-screen)**, the **[Library](#34-library-screen)**, **[File Transfer](#35-file-transfer-screen)**, or **[Settings](#36-settings)**.
 
 ### 3.2 Reading Mode
 
@@ -136,16 +136,37 @@ See [Reading Mode](#4-reading-mode) below for more information.
 
 ### 3.3 Browse Files Screen
 
-The Browse Files screen acts as a file and folder browser. The full path to the current directory is shown at the top of the screen. File extensions are displayed alongside each filename, and directories are shown with brackets (e.g. `[folder-name]`). Hidden entries — those beginning with `.` — appear only when **Settings → System → Show Hidden Files** is enabled. Turning it on is also what makes the folders macOS leaves behind on a card (`.Spotlight-V100`, `.Trashes`) selectable, so they can be deleted. `System Volume Information` stays hidden either way.
+The Browse Files screen acts as a file and folder browser. The full path to the current directory is shown at the top of the screen. File extensions are displayed alongside each filename, and directories are shown with brackets (e.g. `[folder-name]`). Hidden entries — those beginning with `.` — appear only when **Settings → Display → Show Hidden Files** is enabled. Turning it on is also what makes the folders macOS leaves behind on a card (`.Spotlight-V100`, `.Trashes`) selectable, so they can be deleted. `System Volume Information` stays hidden either way.
 
 * **Navigate List:** Use **Left** (or **Side Up**), or **Right** (or **Side Down**) to move the selection cursor up and down through folders and books. You can also long-press these buttons to scroll a full page up or down.
 * **Open Selection:** Press **Confirm** to open a folder or start reading a selected book. Selecting a `.bmp` file will open the image viewer.
 * **Delete Files or Folders:** Hold and release **Confirm** to delete the selected file or folder. You will be given an option to either confirm or cancel. Multiple files can be selected for deletion in a single operation. Deleting a folder removes everything inside it.
 * **Rename or Move:** Files can be renamed or moved to a different folder from within the browse screen.
 
-### 3.4 Recent Books Screen
+### 3.4 Library Screen
 
-The Recent Books screen lists the most recently opened books in a chronological view, displaying title and author.
+Matcha ships two Library screens and **Settings → Display → Library → Library View** chooses between them. **Matcha Covers**, the
+default, is a grid of book covers described in the README. **CrossPoint List** is the indexed list documented below.
+Everything in this section applies to the list view.
+
+The Library indexes up to 4,096 supported books on the SD card and shows their titles and authors without requiring you to remember their folders. Its four tabs provide different views. An arrow beside an indexed tab shows the sort direction:
+
+- **Recent** lists the ten books you opened most recently. Hold a book to remove it from this list.
+- **Added** keeps books in the order in which the Library first discovered them. Down shows newest additions first; up shows oldest first.
+- **Title** groups books by the first letter of the title. Up sorts A-Z and down sorts Z-A. Titles beginning with numbers or punctuation appear under `#`; letters from non-English scripts, including Hebrew, have their own groups.
+- **Author** groups books by author. Up sorts A-Z and down sorts Z-A.
+
+On a button-only device:
+
+- Use **Up/Down** or **Left/Right** to move one row at a time. Hold a direction to move a page at a time.
+- Press **Confirm** to open the selected book.
+- Press **Back** from the book list to focus the tabs. Use **Left/Right** to select another tab, press **Confirm** to reverse its sort direction, or press **Down** to return to the list.
+- While the tabs are focused, hold **Confirm** to open Search.
+- In the Title or Author views, hold **Confirm** on a book to collapse the list to its letter or author groups. The matching group remains selected. Press **Confirm** to enter a group, or **Back** to restore the exact book and position you came from.
+
+On a touch device, tap tabs, books, and the Search icon directly. Tap an active indexed tab again to reverse its sort direction. Swipe to scroll. Long-press a book in the Recent view to remove it from the list. Long-press a book in a Title or Author view to collapse to the group list, then tap a group to expand it. The **Added** view is not grouped; tapping or long-pressing a book opens it.
+
+The index is created automatically the first time the list view is opened. To pick up later file changes or updated metadata, use **Settings → Display → Library → Rebuild library index**. The **Use book metadata** setting in the same place controls whether the index reads titles and authors stored inside books.
 
 ### 3.5 File Transfer Screen
 
@@ -216,6 +237,26 @@ open a list when selected.
 
 #### 3.6.1 Display
 
+- **Library**: Opens the library settings, gathered on one screen:
+  
+  - **Library View**: Which screen the Library entry opens — "Matcha Covers" (default), the cover grid, or
+    "CrossPoint List", the indexed title/author list described in [Library Screen](#34-library-screen)
+  - **Rebuild library index**: Re-scan the card to pick up file changes and updated metadata
+  - **Clear Read Books from Recent List**: Drop a book from the Recent tab once you finish it
+  - **Move finished books to Read**: Move a finished book into a `Read` folder
+  - **Use book metadata**: Read the title and author stored inside each book when the index is rebuilt.
+    When disabled or unavailable, the filename is used
+  
+  Three of those only affect the CrossPoint List screen and are hidden while Matcha Covers is
+  selected, leaving Library View and Move finished books to Read: the index rebuild and the
+  metadata toggle both feed the list's index, which the cover grid does not use, and the cover
+  grid shows every book the card scan finds rather than a recent list.
+
+- **Sleep**: Opens the sleep settings, gathered on one screen, in this order: Sleep Screen, Sleep Screen Cover Mode,
+  Sleep Screen Cover Filter, Quick Resume on Timeout, Time to Sleep, and Restore Light on Wake (described under
+  [Frontlight](#frontlight-x4-pro-only)). They live there rather than in the Display list itself; each is described
+  below.
+
 - **Sleep Screen**: Which sleep screen to display when the device sleeps:
   
   - "Dark" (default) - The default dark Crosspoint logo sleep screen
@@ -237,7 +278,9 @@ open a list when selected.
   - "Contrast" - The image will be displayed as a black & white image without grayscale conversion
   - "Inverted" - The image will be inverted as in white & black and will be displayed without grayscale conversion
 
-- **Quick Resume on Timeout**: Whether to enable the "Quick Resume" sleep screen when the device goes to sleep due to inactivity (System > Time to Sleep). This is useful for quickly resuming reading without waiting for the device to fully wake up and load the book. This overwrites the Sleep Screen Cover Mode when enabled.
+- **Quick Resume on Timeout**: Whether to enable the "Quick Resume" sleep screen when the device goes to sleep due to inactivity (Time to Sleep, below). This is useful for quickly resuming reading without waiting for the device to fully wake up and load the book. This overwrites the Sleep Screen Cover Mode when enabled.
+
+- **Time to Sleep**: Set the duration of inactivity before the device automatically goes to sleep; options are 1, 3, 5, 10 (default), 15 or 30 minutes.
 
 - **Status Bar**: Configure the status bar displayed while reading:
   
@@ -314,9 +357,18 @@ open a list when selected.
 
 #### 3.6.3 Controls
 
+- **Shortcuts**: Opens the button-shortcut settings, gathered on one screen: **Long-Press Button Behavior**,
+  **Long-press Menu**, **Short Power Button Click**, **Quick-return from footnotes** and **Short Back to File
+  Browser**, plus **Double-Click Power for Light** on the X4 Pro and **Tilt Page Turn** on the X3. Each is described
+  below; the remaining entries in this section stay in the Controls list itself.
+
 - **Remap Front Buttons**: A menu for customising the function of each bottom edge button.
 
-- **Side Button Layout (reader)**: Swap the order of the up and down side buttons from "Prev/Next" (default) to "Next/Prev". You can also disable them entirely. This change is only in effect when reading.
+- **Front Buttons Follow Orientation** (on by default): Directional buttons act on the direction you *see*, not the direction they point on the case. Rotate to landscape and the pair that used to move left/right moves up/down instead, with the on-screen hints relabelled to match — so page turns, list scrolling, the keyboard and the word lookup all keep working the way the screen is facing. Rotating swaps which axis each pair of buttons serves, so in landscape the front buttons take the up/down axis and the side buttons take left/right. Switch it off to keep every button fixed to its portrait meaning however the screen is turned. Devices with a touchscreen always follow the orientation and ignore this setting.
+
+- **Navigate with Side Buttons in Word Lookup** (on by default): Lets the side buttons step between words during
+  Word Lookup. Has no effect when **Side Button Layout (reader)** is set to Disabled — turning the side buttons off
+  for reading takes them out of word selection too. See [Word Lookup](#62-word-lookup).
 
 - **Reversed page turn (Vertical & Manga)** (off by default): Flips which button turns the page forward, for the two things that are read right-to-left.
 
@@ -326,9 +378,9 @@ open a list when selected.
 
   This affects **page turning only**. Menus, the reader menu and Word Lookup keep their normal directions. It applies to the front buttons and the side buttons together. Unlike the per-book text settings this one is global: it lives in the Controls screen, so it is the same for every book. Touch page turns have their own setting — see **Touch Reader Controls**, which offers inverted tap and swipe modes for the same reason.
 
-- **Front Buttons Follow Orientation** (on by default): Directional buttons act on the direction you *see*, not the direction they point on the case. Rotate to landscape and the pair that used to move left/right moves up/down instead, with the on-screen hints relabelled to match — so page turns, list scrolling, the keyboard and the word lookup all keep working the way the screen is facing. Rotating swaps which axis each pair of buttons serves, so in landscape the front buttons take the up/down axis and the side buttons take left/right. Switch it off to keep every button fixed to its portrait meaning however the screen is turned. Devices with a touchscreen always follow the orientation and ignore this setting.
+- **Side Button Layout (reader)**: Swap the order of the up and down side buttons from "Prev/Next" (default) to "Next/Prev". You can also disable them entirely. This change is only in effect when reading.
 
-- **Long-press Chapter Skip**: Set whether long-pressing page turn buttons skips to the next/previous chapter:
+- **Long-Press Button Behavior**: Set whether long-pressing page turn buttons skips to the next/previous chapter:
   
   - "Chapter Skip" (default) - Long-pressing skips to next/previous chapter
   - "Page Scroll" - Long-pressing scrolls a page up/down
@@ -362,7 +414,6 @@ open a list when selected.
 
 #### 3.6.4 System
 
-- **Time to Sleep**: Set the duration of inactivity before the device automatically goes to sleep; options are 1, 3, 5, 10 (default), 15 or 30 minutes.
 
 - **Wi-Fi Networks**: Connect to Wi-Fi networks for file transfers and firmware updates.
 
@@ -372,14 +423,19 @@ open a list when selected.
 
 - **Clear Reading Cache**: Clear the internal SD card cache.
 
-- **Check for updates**: Check for Crosspoint firmware updates over Wi-Fi. Firmware can also be updated without a USB connection by placing a `firmware.bin` file on the SD card.
-
 - **Language**: Set the UI language. English, Japanese, Spanish, French and German are built into the firmware. The
   rest — Czech, Brazilian Portuguese, Russian, Swedish, Romanian, Catalan, Ukrainian, Belarusian, Italian, Polish,
   Finnish, Danish, Dutch, Turkish, Kazakh, Hungarian, Lithuanian, Slovenian, Valencian, Hebrew and more — are listed
   too, but marked **Needs pack** until you install a language pack. See [Language Packs (SD Card)](#39-language-packs-sd-card).
 
-- **Manage Fonts**: Browse, download, and manage custom font families installed from the SD card. See [Custom Fonts (SD Card)](#38-custom-fonts-sd-card) for more information.
+- **Keyboard Layouts**: Choose which on-screen keyboard layouts are offered when typing.
+
+- **Check for updates**: Check for Crosspoint firmware updates over Wi-Fi.
+
+- **SD Card Firmware Update**: Install firmware without a USB connection by placing a `firmware.bin` file on the SD card.
+
+Rebuilding the library index moved to **Settings → Display → Library**, and **Manage Fonts** is at the bottom of the
+font list inside **Text Settings**.
 
 #### 3.6.5 OPDS Servers (Multiple Libraries)
 

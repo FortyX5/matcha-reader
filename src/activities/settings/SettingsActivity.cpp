@@ -4,6 +4,7 @@
 #include <FontCacheManager.h>
 #include <GfxRenderer.h>
 #include <HalDisplay.h>
+#include <LibraryBuilder.h>
 #include <Logging.h>
 #include <Memory.h>
 
@@ -16,6 +17,7 @@
 #include "ClearCacheActivity.h"
 #include "CrossPointSettings.h"
 #include "FontDownloadActivity.h"
+#include "HomeButtonSettingsActivity.h"
 #include "KOReaderSettingsActivity.h"
 #include "KeyboardLayoutsActivity.h"
 #include "LanguageSelectActivity.h"
@@ -52,6 +54,7 @@ void SettingsActivity::rebuildSettingsLists() {
   readerSettings.clear();
   controlsSettings.clear();
   systemSettings.clear();
+  submenuSettings.clear();
 
   // Pick up any fonts uploaded/deleted over the web server since the last
   // reader activity ran — otherwise the font-family picker shows stale list.
@@ -63,19 +66,24 @@ void SettingsActivity::rebuildSettingsLists() {
 
   // Reader-launched settings lock the UI to one category while the book remains
   // resident. Avoid materializing every web/device setting in that low-heap path.
-  const StrId categoryFilter = finishOnBack ? categoryNames[selectedCategoryIndex] : StrId::STR_NONE_OPT;
+  // finishOnBack narrows the build to the one category on screen. The Library sub-screen sets it
+  // too (so Back pops to Settings rather than Home), but its category is not a tab, so name it
+  // directly instead of indexing categoryNames.
+  const StrId categoryFilter = isSubmenu()    ? submenuCategory
+                               : finishOnBack ? categoryNames[selectedCategoryIndex]
+                                              : StrId::STR_NONE_OPT;
   auto settings = getSettingsList(&sdFontSystem.registry(), &dictionaries, categoryFilter,
                                   /*includeTextSettingsEntries=*/!finishOnBack, dictionaryLanguage, finishOnBack);
   if (finishOnBack) {
     switch (selectedCategoryIndex) {
       case 0:
-        displaySettings.reserve(settings.size());
+        displaySettings.reserve(settings.size() + 2);
         break;
       case 1:
         readerSettings.reserve(settings.size() + 4);
         break;
       case 2:
-        controlsSettings.reserve(settings.size() + 1);
+        controlsSettings.reserve(settings.size() + 3);
         break;
       case 3:
         systemSettings.reserve(settings.size() + 8);
@@ -87,7 +95,17 @@ void SettingsActivity::rebuildSettingsLists() {
     if (hideMangaOnlySettings && setting.valuePtr == &CrossPointSettings::rotateMangaPanels) {
       continue;
     }
-    if (setting.category == StrId::STR_NONE_OPT) continue;
+    // home_button::isSetting: the home-button shortcut targets are configured from their own
+    // screen, not listed as ordinary rows.
+    if (setting.category == StrId::STR_NONE_OPT || home_button::isSetting(setting.valuePtr)) continue;
+    // Per-setting visibility, independent of which list the setting lands in: a board with a home
+    // key configures that menu from its own screen, and the footnote-return toggle only means
+    // anything while the power button is set to Footnotes.
+    if (BoardConfig::hasHomeKey() && setting.valuePtr == &CrossPointSettings::longPressMenuFunction) continue;
+    if (setting.valuePtr == &CrossPointSettings::pwrBtnFootnoteBack &&
+        SETTINGS.shortPwrBtn != CrossPointSettings::SHORT_PWRBTN::FOOTNOTES) {
+      continue;
+    }
     if (setting.category == StrId::STR_CAT_DISPLAY) {
       // The sunlight fading fix is a grayscale-waveform compensation that does
       // not apply on the X4 Pro / X4 Classic (plain OTP waveform, same panels).
@@ -105,32 +123,67 @@ void SettingsActivity::rebuildSettingsLists() {
       if (mangaMode && setting.nameId == StrId::STR_IMAGES) continue;
       readerSettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_CAT_CONTROLS) {
-      if (setting.valuePtr == &CrossPointSettings::pwrBtnFootnoteBack &&
-          SETTINGS.shortPwrBtn != CrossPointSettings::SHORT_PWRBTN::FOOTNOTES) {
-        continue;
-      }
       controlsSettings.push_back(std::move(setting));
     } else if (setting.category == StrId::STR_CAT_SYSTEM) {
       systemSettings.push_back(std::move(setting));
+    } else if (setting.category == submenuCategory) {
+      // Two rows mean nothing while the cover grid is the active view, so they are hidden with
+      // it -- alongside the Rebuild action below. Use Book Metadata only feeds the CLX1 index the
+      // CrossPoint list view builds; the cover grid keeps its own (covers.idx) and reads titles
+      // from the book as it scans. Clear Read Books acts on the recents store, which is the list
+      // view's Recent tab; the grid lists every book the card scan finds, so a book dropped from
+      // recents is simply found again and the setting has no visible effect there.
+      if ((setting.valuePtr == &CrossPointSettings::libraryUseMetadata ||
+           setting.valuePtr == &CrossPointSettings::removeReadBooksFromRecents) &&
+          SETTINGS.libraryView != CrossPointSettings::LIBRARY_VIEW_LIST) {
+        continue;
+      }
+      submenuSettings.push_back(std::move(setting));
     }
   }
 
   // Append device-only ACTION items
-  if ((!finishOnBack || selectedCategoryIndex == 2) && !BoardConfig::hasTouch()) {
-    controlsSettings.insert(controlsSettings.begin(),
-                            SettingInfo::Action(StrId::STR_REMAP_FRONT_BUTTONS, SettingAction::RemapFrontButtons));
+  // Rebuild sits directly under the view picker rather than at the end of the list. It rebuilds
+  // the CLX1 index, so it is offered only when that index is what the Library entry opens.
+  if (submenuCategory == StrId::STR_CAT_LIBRARY && !submenuSettings.empty() &&
+      SETTINGS.libraryView == CrossPointSettings::LIBRARY_VIEW_LIST) {
+    submenuSettings.insert(submenuSettings.begin() + 1,
+                           SettingInfo::Action(StrId::STR_LIBRARY_REBUILD, SettingAction::RebuildLibraryIndex));
+  }
+  if (!isSubmenu() && (!finishOnBack || selectedCategoryIndex == 0)) {
+    displaySettings.insert(displaySettings.begin(),
+                           SettingInfo::Action(StrId::STR_CAT_SLEEP, SettingAction::SleepSettings));
+    displaySettings.insert(displaySettings.begin(),
+                           SettingInfo::Action(StrId::STR_CAT_LIBRARY, SettingAction::LibrarySettings));
+  }
+  // Controls action rows, in display order above the toggles: the sub-screens first, then the
+  // per-board button configurators. Inserted at begin() in reverse so the list reads this way.
+  if (!finishOnBack || selectedCategoryIndex == 2) {
+    if (BoardConfig::hasHomeKey()) {
+      controlsSettings.insert(controlsSettings.begin(),
+                              SettingInfo::Action(StrId::STR_HOME_BUTTON, SettingAction::HomeButton));
+    }
+    if (!BoardConfig::hasTouch()) {
+      controlsSettings.insert(controlsSettings.begin(),
+                              SettingInfo::Action(StrId::STR_REMAP_FRONT_BUTTONS, SettingAction::RemapFrontButtons));
+    }
+    if (!isSubmenu()) {
+      controlsSettings.insert(controlsSettings.begin(),
+                              SettingInfo::Action(StrId::STR_CAT_SHORTCUTS, SettingAction::ShortcutsSettings));
+    }
   }
   if (!finishOnBack || selectedCategoryIndex == 3) {
     systemSettings.push_back(SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_CLEAR_READING_CACHE, SettingAction::ClearCache));
-    // OTA fetches this board's own release asset (see OtaUpdater); boards whose
-    // asset isn't published yet just report no update available.
-    systemSettings.push_back(SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates));
-    systemSettings.push_back(SettingInfo::Action(StrId::STR_SD_FIRMWARE_UPDATE, SettingAction::SdFirmwareUpdate));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_LANGUAGE, SettingAction::Language));
     systemSettings.push_back(SettingInfo::Action(StrId::STR_KEYBOARD_LAYOUTS, SettingAction::KeyboardLayouts));
+    // Firmware updates last: they replace the running image, so they sit apart from the settings
+    // above rather than next to them. OTA fetches this board's own release asset (see
+    // OtaUpdater); boards whose asset isn't published yet just report no update available.
+    systemSettings.push_back(SettingInfo::Action(StrId::STR_CHECK_UPDATES, SettingAction::CheckForUpdates));
+    systemSettings.push_back(SettingInfo::Action(StrId::STR_SD_FIRMWARE_UPDATE, SettingAction::SdFirmwareUpdate));
   }
   if (!finishOnBack || selectedCategoryIndex == 1) {
     // Text Settings (font/margin/line-layout) has nothing to apply to manga, whose pages are
@@ -166,6 +219,12 @@ void SettingsActivity::rebuildSettingsLists() {
   }
 
   // Update currentSettings pointer and count for the active category
+  if (isSubmenu()) {
+    currentSettings = &submenuSettings;
+    settingsCount = static_cast<int>(currentSettings->size());
+    rebuildRowItems();
+    return;
+  }
   switch (selectedCategoryIndex) {
     case 0:
       currentSettings = &displaySettings;
@@ -202,6 +261,12 @@ void SettingsActivity::onEnter() {
 
 void SettingsActivity::selectCategory(const int categoryIndex) {
   selectedCategoryIndex = categoryIndex;
+  if (isSubmenu()) {
+    currentSettings = &submenuSettings;
+    settingsCount = static_cast<int>(currentSettings->size());
+    rebuildRowItems();
+    return;
+  }
   switch (selectedCategoryIndex) {
     case 0:
       currentSettings = &displaySettings;
@@ -288,6 +353,8 @@ bool SettingsActivity::handleCustomInput() {
 }
 
 void SettingsActivity::stepTab(const int direction) {
+  // The Library sub-screen has one tab; stepping would wrap onto itself and reset the row.
+  if (isSubmenu()) return;
   // Ring position 0 stays on the tab bar; a row selection collapses to the
   // new category's first row (per-tab memory is deliberately not kept here).
   const bool onTabBar = ringPos() == 0;
@@ -384,6 +451,7 @@ bool SettingsActivity::handleButtons() {
 }
 
 void SettingsActivity::toggleCurrentSetting() {
+  mappedInput.resetHomeButtonInput();
   int selectedSetting = ringPos() - 1;
   if (selectedSetting < 0 || selectedSetting >= settingsCount) {
     return;
@@ -415,10 +483,11 @@ void SettingsActivity::toggleCurrentSetting() {
     return;
   } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t currentValue = SETTINGS.*(setting.valuePtr);
-    if (setting.enumValues.size() > 2) {
+    const auto enumLabels = setting.enumLabels();
+    if (enumLabels.size() > 2) {
       const auto valuePtr = setting.valuePtr;
-      optionPopup.show(setting.nameId, setting.enumValues.data(), static_cast<int>(setting.enumValues.size()),
-                       currentValue, [this, valuePtr, sleepScreenChanged, quickResumeTimeoutChanged](int idx) {
+      optionPopup.show(setting.nameId, enumLabels.data(), static_cast<int>(enumLabels.size()), currentValue,
+                       [this, valuePtr, sleepScreenChanged, quickResumeTimeoutChanged](int idx) {
                          SETTINGS.*valuePtr = idx;
                          syncQuickResumeTimeoutForSleepScreen(sleepScreenChanged, quickResumeTimeoutChanged);
                          saveSettings();
@@ -428,10 +497,10 @@ void SettingsActivity::toggleCurrentSetting() {
       requestUpdate();
       return;
     }
-    SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(setting.enumValues.size());
+    SETTINGS.*(setting.valuePtr) = (currentValue + 1) % static_cast<uint8_t>(enumLabels.size());
   } else if (setting.type == SettingType::ENUM && setting.valueGetter && setting.valueSetter) {
     const uint8_t totalValues = setting.enumStringValues.empty()
-                                    ? static_cast<uint8_t>(setting.enumValues.size())
+                                    ? static_cast<uint8_t>(setting.enumLabels().size())
                                     : static_cast<uint8_t>(setting.enumStringValues.size());
     const uint8_t cur = setting.valueGetter();
     if (totalValues > 2) {
@@ -445,7 +514,8 @@ void SettingsActivity::toggleCurrentSetting() {
       if (!setting.enumStringValues.empty()) {
         optionPopup.show(setting.nameId, setting.enumStringValues, cur, std::move(onSelect));
       } else {
-        optionPopup.show(setting.nameId, setting.enumValues.data(), static_cast<int>(setting.enumValues.size()), cur,
+        const auto enumLabels = setting.enumLabels();
+        optionPopup.show(setting.nameId, enumLabels.data(), static_cast<int>(enumLabels.size()), cur,
                          std::move(onSelect));
       }
       requestUpdate();
@@ -463,6 +533,34 @@ void SettingsActivity::toggleCurrentSetting() {
     auto resultHandler = [this](const ActivityResult&) { saveSettings(); };
 
     switch (setting.action) {
+      case SettingAction::LibrarySettings:
+      case SettingAction::SleepSettings:
+      case SettingAction::ShortcutsSettings: {
+        // Same screen, one category. finishOnBack so Back returns here rather than to Home.
+        const StrId category = setting.action == SettingAction::LibrarySettings ? StrId::STR_CAT_LIBRARY
+                               : setting.action == SettingAction::SleepSettings ? StrId::STR_CAT_SLEEP
+                                                                                : StrId::STR_CAT_SHORTCUTS;
+        startActivityForResult(
+            std::make_unique<SettingsActivity>(renderer, mappedInput, /*initialCategory=*/0, /*finishOnBack=*/true,
+                                               /*japaneseBook=*/false, std::string{}, /*showReaderToggles=*/false,
+                                               /*verticalTextEnabled=*/false, /*furiganaEnabled=*/false,
+                                               /*mangaMode=*/false, /*hideMangaOnlySettings=*/false, category),
+            [this](const ActivityResult&) {
+              saveSettings();
+              rebuildSettingsLists();
+            });
+        break;
+      }
+      case SettingAction::HomeButton: {
+        // Activities must outlive this call and are owned by the activity stack.
+        auto activity = makeUniqueNoThrow<HomeButtonSettingsActivity>(renderer, mappedInput);
+        if (!activity) {
+          LOG_ERR("SET", "OOM: Home button settings");
+          return;
+        }
+        startActivityForResult(std::move(activity), [this](const ActivityResult&) { requestUpdate(); });
+        return;
+      }
       case SettingAction::RemapFrontButtons:
         startActivityForResult(std::make_unique<ButtonRemapActivity>(renderer, mappedInput), resultHandler);
         break;
@@ -480,6 +578,9 @@ void SettingsActivity::toggleCurrentSetting() {
         break;
       case SettingAction::ClearCache:
         startActivityForResult(std::make_unique<ClearCacheActivity>(renderer, mappedInput), resultHandler);
+        break;
+      case SettingAction::RebuildLibraryIndex:
+        rebuildLibraryIndex();
         break;
       case SettingAction::CheckForUpdates:
         startActivityForResult(std::make_unique<OtaUpdateActivity>(renderer, mappedInput), resultHandler);
@@ -559,6 +660,29 @@ void SettingsActivity::syncQuickResumeTimeoutForSleepScreen(bool sleepScreenChan
   }
 }
 
+void SettingsActivity::rebuildLibraryIndex() {
+  // Prevent SD-backed fonts from opening a second reader while EPUB metadata is scanned.
+  // Keep the popup static because an e-ink refresh per folder would dominate the rebuild.
+  RenderLock lock(*this);
+  GUI.drawPopup(renderer, tr(STR_LIBRARY_REBUILDING));
+
+  library::BuildStats stats;
+  const bool ok = library::buildLibraryIndex("/", stats, SETTINGS.libraryUseMetadata != 0);
+  if (ok) {
+    LOG_INF("LIB", "rebuild: %u books (%u new, %u renamed, %u removed, %u enriched) in %ums",
+            static_cast<unsigned>(stats.books), static_cast<unsigned>(stats.added),
+            static_cast<unsigned>(stats.renamed), static_cast<unsigned>(stats.removed),
+            static_cast<unsigned>(stats.enriched), static_cast<unsigned>(stats.walkMs));
+    if (stats.dedupDegraded) LOG_ERR("LIB", "rebuild completed without duplicate detection");
+  } else {
+    LOG_ERR("LIB", "index rebuild failed");
+  }
+
+  GUI.drawPopup(renderer, ok ? tr(STR_LIBRARY_REBUILD_DONE) : tr(STR_LIBRARY_REBUILD_FAILED));
+  delay(1200);
+  requestUpdate(true);
+}
+
 void SettingsActivity::openSleepTimeoutPicker() {
   startActivityForResult(
       std::make_unique<IntervalSelectionActivity>(
@@ -597,21 +721,24 @@ bool SettingsActivity::settingSwitchState(const SettingInfo& setting) {
 }
 
 std::string SettingsActivity::settingValueText(const SettingInfo& setting) {
+  if (setting.action == SettingAction::HomeButton) return tr(STR_CONFIGURE);
   // On/off rows draw a switch instead of a value; buildScreen() skips this for them.
   if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     // Guard like the valueGetter branch below: a corrupt/migrated settings
     // byte must not index past the enum table.
     const uint8_t value = SETTINGS.*(setting.valuePtr);
-    if (value >= setting.enumValues.size()) return "";
-    return I18N.get(setting.enumValues[value]);
+    const auto enumLabels = setting.enumLabels();
+    if (value >= enumLabels.size()) return "";
+    return I18N.get(enumLabels[value]);
   }
   if (setting.type == SettingType::ENUM && setting.valueGetter) {
     const uint8_t value = setting.valueGetter();
     if (!setting.enumStringValues.empty() && value < setting.enumStringValues.size()) {
       return setting.enumStringValues[value];
     }
-    if (value < setting.enumValues.size()) {
-      return I18N.get(setting.enumValues[value]);
+    const auto enumLabels = setting.enumLabels();
+    if (value < enumLabels.size()) {
+      return I18N.get(enumLabels[value]);
     }
     return "";
   }
@@ -693,7 +820,10 @@ void SettingsActivity::render(RenderLock&&) {
   // Version rides in the header's trailing label slot: the footer position
   // conflicts with button hints on non-touch devices.
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
-                 finishOnBack ? tr(STR_READER_SETTINGS) : tr(STR_SETTINGS_TITLE), CROSSPOINT_VERSION);
+                 isSubmenu()    ? I18N.get(submenuCategory)
+                 : finishOnBack ? tr(STR_READER_SETTINGS)
+                                : tr(STR_SETTINGS_TITLE),
+                 CROSSPOINT_VERSION);
 
   renderUi();
 

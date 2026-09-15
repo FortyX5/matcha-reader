@@ -737,6 +737,18 @@ void EpubReaderActivity::readerLoop() {
     return;
   }
 
+  switch (mappedInput.homeButtonAction()) {
+    case HomeButtonAction::ReaderMenu:
+    case HomeButtonAction::Bookmark:
+    case HomeButtonAction::Sync:
+    case HomeButtonAction::Dictionary:
+    case HomeButtonAction::Footnotes:
+      automaticPageTurnActive = false;
+      break;
+    default:
+      break;
+  }
+
   if (automaticPageTurnActive) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) ||
         mappedInput.wasReleased(MappedInputManager::Button::Back) ||
@@ -803,12 +815,9 @@ void EpubReaderActivity::readerLoop() {
     }
   }
 
-  // Home-key boards have no front Confirm button, so a Home-key hold runs the
-  // same user-selected long-press action. The SDK emits this event once per
-  // hold and suppresses the short Home tap for the same contact.
-  if (mappedInput.wasHomeKeyHold() && !endOfBookMenuOpen) {
-    switch (SETTINGS.longPressMenuFunction) {
-      case CrossPointSettings::LP_MENU_BOOKMARK:
+  if (!endOfBookMenuOpen) {
+    switch (mappedInput.homeButtonAction()) {
+      case HomeButtonAction::Bookmark:
         if (!showBookmarkMessage) {
           addBookmark();
           showBookmarkMessage = true;
@@ -816,10 +825,10 @@ void EpubReaderActivity::readerLoop() {
           requestUpdate();
         }
         return;
-      case CrossPointSettings::LP_MENU_KOSYNC:
+      case HomeButtonAction::Sync:
         launchKOReaderSync();
         return;
-      case CrossPointSettings::LP_MENU_DICTIONARY:
+      case HomeButtonAction::Dictionary:
         if (!showDictionaryMessage) {
           // The page is on screen for a Home-key hold exactly as it is for a Confirm hold, so
           // word selection starts on it rather than re-rendering (upstream calls this with no
@@ -827,14 +836,13 @@ void EpubReaderActivity::readerLoop() {
           openDictionaryWordSelect(/*pageOnScreen=*/true);
         }
         return;
-      case CrossPointSettings::LP_MENU_READER_MENU:
+      case HomeButtonAction::ReaderMenu:
         if (usesToolbarMenu() && (section || verticalSection)) {
           openOverlay(Overlay::Toolbar);
         } else {
           openReaderMenu();
         }
         return;
-      case CrossPointSettings::LP_MENU_DISABLED:
       default:
         break;
     }
@@ -896,8 +904,9 @@ void EpubReaderActivity::readerLoop() {
   // auto [prevTriggered, nextTriggered] = ReaderUtils::detectPageTurn(mappedInput);
 
   // Handle short power button press for footnotes
-  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::FOOTNOTES &&
-      mappedInput.wasReleased(MappedInputManager::Button::Power) && !gpio.wasReleased(HalGPIO::BTN_DOWN)) {
+  if ((!endOfBookMenuOpen && mappedInput.homeButtonAction() == HomeButtonAction::Footnotes) ||
+      (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::FOOTNOTES &&
+       mappedInput.wasReleased(MappedInputManager::Button::Power) && !gpio.wasReleased(HalGPIO::BTN_DOWN))) {
     // Inside a footnote the click is REPURPOSED: instead of opening the panel again it jumps back
     // to the reference it was read from. That repurposing is the whole of what
     // pwrBtnFootnoteBack ("Quick-return from footnotes") names, so it is what the setting gates --
@@ -4405,6 +4414,7 @@ void EpubReaderActivity::discardOverlayPage() {
 }
 
 void EpubReaderActivity::openOverlay(Overlay target) {
+  mappedInput.resetHomeButtonInput();
   requestVerticalBuildNotice();
   const Overlay previous = overlay;
   overlay = target;
@@ -4477,6 +4487,7 @@ void EpubReaderActivity::openOverlay(Overlay target) {
 // grayscale-AA pass restore the page snapshot and push one FAST refresh -- no
 // re-render, no flash; Xteink boards re-render to restore the AA planes.
 void EpubReaderActivity::closeOverlayToPage() {
+  mappedInput.resetHomeButtonInput();
   overlay = Overlay::None;
   overlayPopup.dismiss();  // an option picker cannot outlive its panel
   toolbarUi.reset();       // ~1 KB of interaction table + props, only needed while open

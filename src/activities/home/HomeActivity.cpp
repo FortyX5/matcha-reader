@@ -313,7 +313,7 @@ void HomeActivity::loop() {
       case HomeMenuItem::FILE_BROWSER:
         onFileBrowserOpen();
         break;
-      case HomeMenuItem::RECENTS:
+      case HomeMenuItem::LIBRARY:
         onLibraryOpen();
         break;
       case HomeMenuItem::OPDS_BROWSER:
@@ -503,7 +503,7 @@ void HomeActivity::onSelectBook(const std::string& path) { activityManager.goToR
 
 void HomeActivity::onFileBrowserOpen() { activityManager.goToFileBrowser(); }
 
-void HomeActivity::onLibraryOpen() { activityManager.goToRecentBooks(); }
+void HomeActivity::onLibraryOpen() { activityManager.goToLibrary(); }
 
 void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
 
