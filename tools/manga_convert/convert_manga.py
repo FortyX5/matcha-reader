@@ -710,19 +710,22 @@ def _y_overlap_frac(a: list[int], b: list[int]) -> float:
     return max(0.0, overlap) / max(1, min_h)
 
 
-def sort_panels_manga_order(panels: list[list[int]]) -> list[list[int]]:
-    """Sort panel boxes in manga reading order via a "reads-before" graph,
+def sort_panels_reading_order(panels: list[list[int]], direction: str = "rtl") -> list[list[int]]:
+    """Sort panel boxes in the selected reading order via a "reads-before" graph,
     then a topological sort -- robust to mixed-size grids (e.g. one tall
     panel beside two stacked shorter ones), which simple row-clustering by
     Y-center gets wrong.
 
     For every pair of panels: if their vertical extents overlap
-    substantially, they're in the same tier and read right-to-left; if not,
+    substantially, they're in the same tier and read in ``direction``; if not,
     whichever is higher up reads first (the other dimension doesn't matter
     once there's no vertical overlap). This produces a partial order;
     topological sort resolves the full reading sequence, with same-rank
-    ties broken top-to-bottom then right-to-left.
+    ties broken top-to-bottom then in the selected horizontal direction.
     """
+    if direction not in ("rtl", "ltr"):
+        raise ValueError(f"Unsupported panel reading direction: {direction}")
+
     n = len(panels)
     if n <= 1:
         return panels
@@ -738,7 +741,7 @@ def sort_panels_manga_order(panels: list[list[int]]) -> list[list[int]]:
             a, b = panels[i], panels[j]
             if _y_overlap_frac(a, b) > OVERLAP_THRESHOLD:
                 a_cx, b_cx = (a[0] + a[2]) / 2, (b[0] + b[2]) / 2
-                if a_cx > b_cx:  # same tier: right-to-left
+                if (direction == "rtl" and a_cx > b_cx) or (direction == "ltr" and a_cx < b_cx):
                     edges[i].append(j)
                     in_degree[j] += 1
             else:
@@ -749,7 +752,8 @@ def sort_panels_manga_order(panels: list[list[int]]) -> list[list[int]]:
 
     def tie_break_key(i: int):
         x1, y1, x2, y2 = panels[i]
-        return ((y1 + y2) / 2, -(x1 + x2) / 2)
+        horizontal_rank = -(x1 + x2) / 2 if direction == "rtl" else (x1 + x2) / 2
+        return ((y1 + y2) / 2, horizontal_rank)
 
     available = [i for i in range(n) if in_degree[i] == 0]
     result: list[int] = []
@@ -768,6 +772,11 @@ def sort_panels_manga_order(panels: list[list[int]]) -> list[list[int]]:
         return panels
 
     return [panels[i] for i in result]
+
+
+def sort_panels_manga_order(panels: list[list[int]]) -> list[list[int]]:
+    """Backward-compatible name for the original right-to-left ordering."""
+    return sort_panels_reading_order(panels, "rtl")
 
 
 # ── Gemini OCR (invoked via curl, key never embedded in code) ───
@@ -1280,6 +1289,12 @@ def main():
     parser.add_argument("--gemini-key-file", help="Path to a file containing the Gemini API key")
     parser.add_argument("--no-ocr", action="store_true", help="Skip Gemini OCR -- panel boxes only, no text")
     parser.add_argument("--panel-margin", type=int, default=10, help="Pixels of margin added around cropped panels")
+    parser.add_argument(
+        "--reading-direction",
+        choices=("rtl", "ltr"),
+        default="rtl",
+        help="Horizontal panel reading direction: rtl for manga (default), ltr for western comics/graphic novels.",
+    )
     parser.add_argument("--max-pages", type=int, help="Only process the first N pages (for testing)")
     parser.add_argument(
         "--toc-file",
@@ -1439,7 +1454,7 @@ def main():
                     shutil.copy(src_path, os.path.join(args.output_dir, f"page_{page_idx:04d}{ext}"))
 
             boxes = detect_panels(img)
-            boxes = sort_panels_manga_order(boxes)
+            boxes = sort_panels_reading_order(boxes, args.reading_direction)
 
             # Crop and save every panel first (fast, local) before dispatching
             # the slow network calls concurrently -- OCR is I/O-bound (network

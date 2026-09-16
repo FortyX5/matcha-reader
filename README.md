@@ -148,6 +148,7 @@ python3 tools/manga_convert/convert_manga.py \
   --input /path/to/manga.cbz \
   --output-dir /path/to/sd/manga/MangaTitle/ \
   --language ja \
+  --reading-direction rtl \
   --x4
 ```
 
@@ -158,6 +159,7 @@ Set `--language` on every manga. It is what splits your reading time by language
 | Flag | Effect |
 | --- | --- |
 | `--x4` / `--x3` | Scale to the device screen. Smaller files, faster page turns, nothing lost. |
+| `--reading-direction rtl` / `ltr` | Order panels for manga (right-to-left, the default) or western comics and graphic novels (left-to-right). |
 | `--mono` | 1-bit dithered BMP. Good for line art, less so for heavy screentone. |
 | `--no-ocr` | Panel boxes only, no Gemini calls, no text or translations. |
 | `--max-pages N` | Convert the first N pages as a cheap test. |

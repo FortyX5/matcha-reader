@@ -748,6 +748,10 @@ Two options change how panels are shown. Both are per book and are remembered.
 | **Rotate Panels** | Settings → Reader | On by default. A panel whose shape does not match the screen is turned, so a wide panel fills the display and you rotate the device to read it. Switch it off and every panel is fitted upright inside the current orientation, smaller but never sideways. |
 | **Panels Only** | Reader menu | Skips the full page overviews and moves straight between panels. With it off, each page's overview comes first, then its panels. A page with no detected panel still shows as a full page either way. |
 
+Panel order is chosen when converting the book. The converter defaults to manga-style
+right-to-left ordering. For western comics and graphic novels, pass
+`--reading-direction ltr`; use `--reading-direction rtl` (or omit the option) for manga.
+
 Manga converted without full page images enters panel mode on its own.
 
 Reaching the last page marks the manga finished in your reading stats, the same as an EPUB.
