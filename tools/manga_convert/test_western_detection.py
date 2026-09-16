@@ -11,7 +11,7 @@ except ImportError:  # The converter documents Pillow as a runtime dependency.
     Image = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from convert_manga import detect_panels, sort_panels_reading_order
+from convert_manga import detect_panels, scale_panel_boxes, sort_panels_reading_order
 
 
 @unittest.skipIf(Image is None, "Pillow is required for image-level detector tests")
@@ -56,3 +56,16 @@ class WesternPanelDetectionTests(unittest.TestCase):
     def test_borderless_page_degrades_to_full_page(self):
         image = Image.new("RGB", (600, 900), "gray")
         self.assertEqual(detect_panels(image, "western"), [[0, 0, 600, 900]])
+
+    def test_source_resolution_boxes_scale_to_x3_page_space(self):
+        boxes = [[0, 0, 600, 900], [315, 455, 580, 880]]
+        self.assertEqual(
+            scale_panel_boxes(boxes, (600, 900), (352, 528)),
+            [[0, 0, 352, 528], [185, 267, 340, 516]],
+        )
+
+    def test_scaled_tiny_box_remains_nonempty(self):
+        self.assertEqual(
+            scale_panel_boxes([[599, 899, 600, 900]], (600, 900), (352, 528)),
+            [[351, 527, 352, 528]],
+        )

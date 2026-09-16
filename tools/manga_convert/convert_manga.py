@@ -792,6 +792,27 @@ def detect_panels(img, layout_style: str = "manga") -> list[list[int]]:
     return _detect_panels_grid(img)
 
 
+def scale_panel_boxes(
+    boxes: list[list[int]], source_size: tuple[int, int], target_size: tuple[int, int]
+) -> list[list[int]]:
+    """Map source-resolution detector boxes into the stored page coordinate space."""
+    source_w, source_h = source_size
+    target_w, target_h = target_size
+    if source_w <= 0 or source_h <= 0 or target_w <= 0 or target_h <= 0:
+        raise ValueError("Panel coordinate spaces must have positive dimensions")
+
+    scale_x = target_w / source_w
+    scale_y = target_h / source_h
+    scaled = []
+    for x1, y1, x2, y2 in boxes:
+        sx1 = min(target_w - 1, max(0, round(x1 * scale_x)))
+        sy1 = min(target_h - 1, max(0, round(y1 * scale_y)))
+        sx2 = min(target_w, max(sx1 + 1, round(x2 * scale_x)))
+        sy2 = min(target_h, max(sy1 + 1, round(y2 * scale_y)))
+        scaled.append([sx1, sy1, sx2, sy2])
+    return scaled
+
+
 def resolve_reading_direction(layout_style: str, requested_direction: str | None) -> str:
     """Return an explicit direction or the selected layout style's default."""
     if requested_direction is not None:
@@ -1513,11 +1534,10 @@ def main():
             # progressive even though the user passed --x4 precisely to avoid that. Note it here,
             # while `img` is still the file as opened.
             src_is_progressive = bool(img.info.get("progressive") or img.info.get("progression"))
-            # Downscale FIRST, before panel detection: every coordinate downstream (panel boxes,
-            # crop rects, OCR text boxes, the page dims in panels.idx) then lives in the resized
-            # space, matching the page/crop files actually written -- nothing needs rescaling.
             orig_size = img.size
-            # ...but keep the full-resolution page for the panel crops. A panel is shown zoomed to
+            # Keep the full-resolution page for detection and panel crops. Thin gutters can vanish
+            # when a page is reduced to X3/X4 dimensions, so detect before resizing and map the
+            # resulting boxes into the stored page's coordinate space below. A panel is shown zoomed to
             # fill the screen, so cropping it out of the already-reduced page spends most of the
             # pixel budget before the zoom even starts -- a quarter-page panel keeps a quarter of
             # the reduced pixels and is then magnified, dither dots and all. Cropping at full
@@ -1527,8 +1547,8 @@ def main():
             img = fit_to_device(img, device_target)
             was_resized = img.size != orig_size
             img_w, img_h = img.size
-            # Panel boxes stay in resized page space (panels.idx records the page at that size);
-            # only the crop is taken from the original, so map the rect back across.
+            # panels.idx records the resized page dimensions. These ratios also convert the
+            # user-facing panel margin from stored-page pixels to source-image pixels.
             panel_scale_x = source_img.width / img_w
             panel_scale_y = source_img.height / img_h
 
@@ -1561,8 +1581,9 @@ def main():
                 else:
                     shutil.copy(src_path, os.path.join(args.output_dir, f"page_{page_idx:04d}{ext}"))
 
-            boxes = detect_panels(img, args.layout_style)
-            boxes = sort_panels_reading_order(boxes, reading_direction)
+            source_boxes = detect_panels(source_img, args.layout_style)
+            source_boxes = sort_panels_reading_order(source_boxes, reading_direction)
+            boxes = scale_panel_boxes(source_boxes, source_img.size, img.size)
 
             # Crop and save every panel first (fast, local) before dispatching
             # the slow network calls concurrently -- OCR is I/O-bound (network
@@ -1570,7 +1591,7 @@ def main():
             # ~N x call_latency into ~call_latency per page.
             panel_paths = []
             panel_rects = []
-            for panel_idx, box in enumerate(boxes):
+            for panel_idx, (box, source_box) in enumerate(zip(boxes, source_boxes)):
                 x1, y1, x2, y2 = box
                 mx1 = max(0, x1 - args.panel_margin)
                 my1 = max(0, y1 - args.panel_margin)
@@ -1582,11 +1603,12 @@ def main():
                 # full-page image anyway, so the crop is a redundant copy.
                 panel_path = None
                 if not is_full_page_panel(box, img_w, img_h):
+                    source_x1, source_y1, source_x2, source_y2 = source_box
                     cropped = source_img.crop((
-                        max(0, round(mx1 * panel_scale_x)),
-                        max(0, round(my1 * panel_scale_y)),
-                        min(source_img.width, round(mx2 * panel_scale_x)),
-                        min(source_img.height, round(my2 * panel_scale_y)),
+                        max(0, round(source_x1 - args.panel_margin * panel_scale_x)),
+                        max(0, round(source_y1 - args.panel_margin * panel_scale_y)),
+                        min(source_img.width, round(source_x2 + args.panel_margin * panel_scale_x)),
+                        min(source_img.height, round(source_y2 + args.panel_margin * panel_scale_y)),
                     ))
                     # Fit the panel itself to the screen, exactly as the page was fitted: the
                     # firmware zooms a panel to fill the display, so this is the size it is
