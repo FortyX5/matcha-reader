@@ -695,6 +695,85 @@ def _detect_panels_grid(img) -> list[list[int]]:
     return panels
 
 
+def _detect_panels_recursive_grid(img) -> list[list[int]]:
+    """Detect irregular comic grids by recursively splitting on white gutters.
+
+    Unlike the legacy row-first grid detector, each child region is analysed
+    independently. This lets a vertical split isolate a tall panel before a
+    horizontal split divides two stacked panels beside it (and vice versa).
+    Insets, overlapping art, and borderless pages still degrade safely to a
+    single region because they contain no full-span white gutter.
+    """
+    gray = img.convert("L")
+    page_w, page_h = gray.size
+    pixels = gray.load()
+
+    threshold = 215
+    purity = 0.97
+    min_gutter = max(6, int(min(page_w, page_h) * 0.013))
+    min_panel_w = max(40, int(page_w * 0.06))
+    min_panel_h = max(40, int(page_h * 0.05))
+
+    def white_fraction_x(x: int, y1: int, y2: int) -> float:
+        samples = range(y1, y2, 2)
+        count = max(1, (y2 - y1 + 1) // 2)
+        return sum(1 for y in samples if pixels[x, y] > threshold) / count
+
+    def white_fraction_y(y: int, x1: int, x2: int) -> float:
+        samples = range(x1, x2, 2)
+        count = max(1, (x2 - x1 + 1) // 2)
+        return sum(1 for x in samples if pixels[x, y] > threshold) / count
+
+    def interior_gutters(start: int, end: int, is_white) -> list[tuple[int, int]]:
+        gutters = []
+        gutter_start = None
+        for pos in range(start, end):
+            if is_white(pos):
+                if gutter_start is None:
+                    gutter_start = pos
+            elif gutter_start is not None:
+                if pos - gutter_start >= min_gutter and gutter_start > start and pos < end:
+                    gutters.append((gutter_start, pos))
+                gutter_start = None
+        return gutters
+
+    def split_region(box: list[int], depth: int = 0) -> list[list[int]]:
+        x1, y1, x2, y2 = box
+        if depth >= 12 or x2 - x1 < min_panel_w * 2 or y2 - y1 < min_panel_h * 2:
+            return [box]
+
+        vertical = interior_gutters(x1, x2, lambda x: white_fraction_x(x, y1, y2) >= purity)
+        horizontal = interior_gutters(y1, y2, lambda y: white_fraction_y(y, x1, x2) >= purity)
+
+        # Prefer the split with the widest full-span gutter. Either axis is
+        # correct for regular grids; for asymmetric layouts only the gutter
+        # that genuinely spans this region will be available.
+        widest_vertical = max(vertical, key=lambda g: g[1] - g[0], default=None)
+        widest_horizontal = max(horizontal, key=lambda g: g[1] - g[0], default=None)
+        vertical_width = widest_vertical[1] - widest_vertical[0] if widest_vertical else 0
+        horizontal_width = widest_horizontal[1] - widest_horizontal[0] if widest_horizontal else 0
+
+        if vertical_width == 0 and horizontal_width == 0:
+            return [box]
+
+        if vertical_width >= horizontal_width:
+            gutter_start, gutter_end = widest_vertical
+            split = (gutter_start + gutter_end) // 2
+            children = ([x1, y1, split, y2], [split, y1, x2, y2])
+        else:
+            gutter_start, gutter_end = widest_horizontal
+            split = (gutter_start + gutter_end) // 2
+            children = ([x1, y1, x2, split], [x1, split, x2, y2])
+
+        result = []
+        for child in children:
+            if child[2] - child[0] >= min_panel_w and child[3] - child[1] >= min_panel_h:
+                result.extend(split_region(child, depth + 1))
+        return result or [box]
+
+    return split_region([0, 0, page_w, page_h])
+
+
 def detect_panels(img, layout_style: str = "manga") -> list[list[int]]:
     """Detect panel rectangles for the requested page-layout style.
 
@@ -703,7 +782,7 @@ def detect_panels(img, layout_style: str = "manga") -> list[list[int]]:
     that manga-specific model and use geometry-based gutter detection.
     """
     if layout_style == "western":
-        return _detect_panels_grid(img)
+        return _detect_panels_recursive_grid(img)
     if layout_style != "manga":
         raise ValueError(f"Unsupported layout style: {layout_style}")
 

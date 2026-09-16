@@ -56,7 +56,7 @@ class ConversionProfileTests(unittest.TestCase):
     def test_explicit_direction_overrides_profile_default(self):
         self.assertEqual(resolve_reading_direction("western", "rtl"), "rtl")
 
-    @patch("convert_manga._detect_panels_grid", return_value=[[1, 2, 3, 4]])
+    @patch("convert_manga._detect_panels_recursive_grid", return_value=[[1, 2, 3, 4]])
     @patch("convert_manga._detect_panels_yolo")
     def test_western_profile_bypasses_manga_model(self, manga_detector, gutter_detector):
         self.assertEqual(detect_panels(object(), "western"), [[1, 2, 3, 4]])
