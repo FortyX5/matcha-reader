@@ -31,6 +31,10 @@ Usage:
     python3 convert_manga.py --input ./manga_pages/ --output-dir ./out/ \\
         --page-order-file ./order.txt
 
+    # Western comic / graphic-novel profile (gutter detector + LTR order):
+    python3 convert_manga.py --input ./comic.cbz --output-dir ./out/ \
+        --layout-style western --no-ocr
+
     # Skip the Gemini OCR pass entirely (panels only, no text/lookup data):
     python3 convert_manga.py --input ./manga_pages/ --output-dir ./out/ --no-ocr
 
@@ -691,12 +695,29 @@ def _detect_panels_grid(img) -> list[list[int]]:
     return panels
 
 
-def detect_panels(img) -> list[list[int]]:
-    """Detect panel rectangles -- YOLO model if available, else grid heuristic."""
+def detect_panels(img, layout_style: str = "manga") -> list[list[int]]:
+    """Detect panel rectangles for the requested page-layout style.
+
+    Manga uses the Manga109-trained YOLO detector when available and falls
+    back to the gutter heuristic. Western comics and graphic novels bypass
+    that manga-specific model and use geometry-based gutter detection.
+    """
+    if layout_style == "western":
+        return _detect_panels_grid(img)
+    if layout_style != "manga":
+        raise ValueError(f"Unsupported layout style: {layout_style}")
+
     boxes = _detect_panels_yolo(img)
     if boxes is not None:
         return boxes
     return _detect_panels_grid(img)
+
+
+def resolve_reading_direction(layout_style: str, requested_direction: str | None) -> str:
+    """Return an explicit direction or the selected layout style's default."""
+    if requested_direction is not None:
+        return requested_direction
+    return "ltr" if layout_style == "western" else "rtl"
 
 
 def _y_overlap_frac(a: list[int], b: list[int]) -> float:
@@ -1290,10 +1311,17 @@ def main():
     parser.add_argument("--no-ocr", action="store_true", help="Skip Gemini OCR -- panel boxes only, no text")
     parser.add_argument("--panel-margin", type=int, default=10, help="Pixels of margin added around cropped panels")
     parser.add_argument(
+        "--layout-style",
+        choices=("manga", "western"),
+        default="manga",
+        help="Panel layout profile. manga uses the Manga109 model when available; western uses geometric gutter "
+             "detection for comics and graphic novels. Default: manga.",
+    )
+    parser.add_argument(
         "--reading-direction",
         choices=("rtl", "ltr"),
-        default="rtl",
-        help="Horizontal panel reading direction: rtl for manga (default), ltr for western comics/graphic novels.",
+        default=None,
+        help="Override horizontal panel order. Defaults to rtl for manga and ltr for western layouts.",
     )
     parser.add_argument("--max-pages", type=int, help="Only process the first N pages (for testing)")
     parser.add_argument(
@@ -1337,6 +1365,7 @@ def main():
     args = parser.parse_args()
 
     device_target = DEVICE_TARGETS["x3"] if args.x3 else DEVICE_TARGETS["x4"] if args.x4 else None
+    reading_direction = resolve_reading_direction(args.layout_style, args.reading_direction)
 
     api_key = None
     if not args.no_ocr:
@@ -1453,8 +1482,8 @@ def main():
                 else:
                     shutil.copy(src_path, os.path.join(args.output_dir, f"page_{page_idx:04d}{ext}"))
 
-            boxes = detect_panels(img)
-            boxes = sort_panels_reading_order(boxes, args.reading_direction)
+            boxes = detect_panels(img, args.layout_style)
+            boxes = sort_panels_reading_order(boxes, reading_direction)
 
             # Crop and save every panel first (fast, local) before dispatching
             # the slow network calls concurrently -- OCR is I/O-bound (network
