@@ -751,7 +751,7 @@ Two options change how panels are shown. Both are per book and are remembered.
 Panel detection and order are chosen when converting the book. The default
 `--layout-style manga` profile uses the manga-trained detector and right-to-left order.
 For western comics and graphic novels, pass `--layout-style western` to use recursive
-gutter detection—including tall panels beside stacked panels—with left-to-right order.
+light- and dark-gutter detection—including tall panels beside stacked panels—with left-to-right order.
 `--reading-direction rtl` or `ltr` overrides
 the selected profile's default order.
 

@@ -696,39 +696,46 @@ def _detect_panels_grid(img) -> list[list[int]]:
 
 
 def _detect_panels_recursive_grid(img) -> list[list[int]]:
-    """Detect irregular comic grids by recursively splitting on white gutters.
+    """Detect irregular comic grids by recursively splitting on light or dark gutters.
 
     Unlike the legacy row-first grid detector, each child region is analysed
     independently. This lets a vertical split isolate a tall panel before a
     horizontal split divides two stacked panels beside it (and vice versa).
     Insets, overlapping art, and borderless pages still degrade safely to a
-    single region because they contain no full-span white gutter.
+    single region because they contain no confident full-span gutter.
     """
     gray = img.convert("L")
     page_w, page_h = gray.size
     pixels = gray.load()
 
-    threshold = 215
+    light_threshold = 215
+    dark_threshold = 40
     purity = 0.97
     min_gutter = max(6, int(min(page_w, page_h) * 0.013))
     min_panel_w = max(40, int(page_w * 0.06))
     min_panel_h = max(40, int(page_h * 0.05))
 
-    def white_fraction_x(x: int, y1: int, y2: int) -> float:
+    def gutter_fraction_x(x: int, y1: int, y2: int) -> float:
         samples = range(y1, y2, 2)
         count = max(1, (y2 - y1 + 1) // 2)
-        return sum(1 for y in samples if pixels[x, y] > threshold) / count
+        values = [pixels[x, y] for y in samples]
+        light = sum(1 for value in values if value > light_threshold)
+        dark = sum(1 for value in values if value < dark_threshold)
+        return max(light, dark) / count
 
-    def white_fraction_y(y: int, x1: int, x2: int) -> float:
+    def gutter_fraction_y(y: int, x1: int, x2: int) -> float:
         samples = range(x1, x2, 2)
         count = max(1, (x2 - x1 + 1) // 2)
-        return sum(1 for x in samples if pixels[x, y] > threshold) / count
+        values = [pixels[x, y] for x in samples]
+        light = sum(1 for value in values if value > light_threshold)
+        dark = sum(1 for value in values if value < dark_threshold)
+        return max(light, dark) / count
 
-    def interior_gutters(start: int, end: int, is_white) -> list[tuple[int, int]]:
+    def interior_gutters(start: int, end: int, is_gutter) -> list[tuple[int, int]]:
         gutters = []
         gutter_start = None
         for pos in range(start, end):
-            if is_white(pos):
+            if is_gutter(pos):
                 if gutter_start is None:
                     gutter_start = pos
             elif gutter_start is not None:
@@ -742,8 +749,8 @@ def _detect_panels_recursive_grid(img) -> list[list[int]]:
         if depth >= 12 or x2 - x1 < min_panel_w * 2 or y2 - y1 < min_panel_h * 2:
             return [box]
 
-        vertical = interior_gutters(x1, x2, lambda x: white_fraction_x(x, y1, y2) >= purity)
-        horizontal = interior_gutters(y1, y2, lambda y: white_fraction_y(y, x1, x2) >= purity)
+        vertical = interior_gutters(x1, x2, lambda x: gutter_fraction_x(x, y1, y2) >= purity)
+        horizontal = interior_gutters(y1, y2, lambda y: gutter_fraction_y(y, x1, x2) >= purity)
 
         # Prefer the split with the widest full-span gutter. Either axis is
         # correct for regular grids; for asymmetric layouts only the gutter

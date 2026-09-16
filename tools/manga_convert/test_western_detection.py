@@ -58,6 +58,18 @@ class WesternPanelDetectionTests(unittest.TestCase):
         panels = detect_panels(image, "western")
         self.assertEqual(len(panels), 4)
 
+    def test_dark_gutters_split_light_panels(self):
+        image = Image.new("RGB", (600, 900), "black")
+        draw = ImageDraw.Draw(image)
+        for box in [(20, 20, 285, 425), (315, 20, 580, 425),
+                    (20, 455, 285, 880), (315, 455, 580, 880)]:
+            draw.rectangle(box, fill="gray", outline="white", width=5)
+        self.assertEqual(len(detect_panels(image, "western")), 4)
+
+    def test_solid_dark_page_degrades_to_full_page(self):
+        image = Image.new("RGB", (600, 900), "black")
+        self.assertEqual(detect_panels(image, "western"), [[0, 0, 600, 900]])
+
     def test_borderless_page_degrades_to_full_page(self):
         image = Image.new("RGB", (600, 900), "gray")
         self.assertEqual(detect_panels(image, "western"), [[0, 0, 600, 900]])

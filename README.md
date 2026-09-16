@@ -159,7 +159,7 @@ Set `--language` on every manga. It is what splits your reading time by language
 | Flag | Effect |
 | --- | --- |
 | `--x4` / `--x3` | Scale to the device screen. Panel detection still uses the full-resolution source, preserving thin gutters; output files stay smaller for faster page turns. |
-| `--layout-style manga` / `western` | Use the manga-trained detector (default) or recursive gutter detection for regular and irregular western comic layouts. The western profile also defaults to left-to-right panel order. |
+| `--layout-style manga` / `western` | Use the manga-trained detector (default) or recursive light/dark-gutter detection for regular and irregular western comic layouts. The western profile also defaults to left-to-right panel order. |
 | `--reading-direction rtl` / `ltr` | Override the profile's panel order. Manga defaults to right-to-left; western defaults to left-to-right. |
 | `--split-spreads` | Split each landscape scan or screenshot into two portrait pages before detection, ordered using the selected reading direction. |
 | `--mono` | 1-bit dithered BMP. Good for line art, less so for heavy screentone. |
