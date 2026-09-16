@@ -11,7 +11,12 @@ except ImportError:  # The converter documents Pillow as a runtime dependency.
     Image = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from convert_manga import detect_panels, scale_panel_boxes, sort_panels_reading_order
+from convert_manga import (
+    detect_panels,
+    scale_panel_boxes,
+    sort_panels_reading_order,
+    split_spread_image,
+)
 
 
 @unittest.skipIf(Image is None, "Pillow is required for image-level detector tests")
@@ -69,3 +74,22 @@ class WesternPanelDetectionTests(unittest.TestCase):
             scale_panel_boxes([[599, 899, 600, 900]], (600, 900), (352, 528)),
             [[351, 527, 352, 528]],
         )
+
+    def test_ltr_spread_splits_left_then_right(self):
+        image = Image.new("RGB", (8, 4), "white")
+        ImageDraw.Draw(image).rectangle((0, 0, 3, 3), fill="black")
+        parts = split_spread_image(image, "ltr")
+        self.assertEqual([part.size for part in parts], [(4, 4), (4, 4)])
+        self.assertEqual(parts[0].getpixel((0, 0)), (0, 0, 0))
+        self.assertEqual(parts[1].getpixel((0, 0)), (255, 255, 255))
+
+    def test_rtl_spread_splits_right_then_left(self):
+        image = Image.new("RGB", (8, 4), "white")
+        ImageDraw.Draw(image).rectangle((0, 0, 3, 3), fill="black")
+        parts = split_spread_image(image, "rtl")
+        self.assertEqual(parts[0].getpixel((0, 0)), (255, 255, 255))
+        self.assertEqual(parts[1].getpixel((0, 0)), (0, 0, 0))
+
+    def test_portrait_page_is_not_split(self):
+        image = Image.new("RGB", (4, 8), "white")
+        self.assertEqual(split_spread_image(image, "ltr"), [image])

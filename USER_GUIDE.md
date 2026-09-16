@@ -755,6 +755,11 @@ gutter detection—including tall panels beside stacked panels—with left-to-ri
 `--reading-direction rtl` or `ltr` overrides
 the selected profile's default order.
 
+If each source image contains two facing pages, add `--split-spreads`. Landscape
+images are divided into two portrait pages before panel detection, and the halves
+are ordered using the selected reading direction. Leave this off for intentional
+single-image landscape pages.
+
 Manga converted without full page images enters panel mode on its own.
 
 Reaching the last page marks the manga finished in your reading stats, the same as an EPUB.

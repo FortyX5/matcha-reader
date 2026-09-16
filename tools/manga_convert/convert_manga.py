@@ -1399,6 +1399,48 @@ def fit_to_device(img, target):
     return img.resize((new_w, new_h), Image.LANCZOS)
 
 
+def split_spread_image(img, reading_direction: str):
+    """Return portrait halves for a landscape spread, in reading order."""
+    if reading_direction not in ("ltr", "rtl"):
+        raise ValueError(f"Unsupported reading direction: {reading_direction}")
+    width, height = img.size
+    if width <= height:
+        return [img]
+
+    midpoint = width // 2
+    left = img.crop((0, 0, midpoint, height))
+    right = img.crop((midpoint, 0, width, height))
+    return [left, right] if reading_direction == "ltr" else [right, left]
+
+
+def split_spread_pages(pages: list[str], work_dir: str, reading_direction: str) -> tuple[list[str], list[int]]:
+    """Materialize landscape source pages as ordered halves in the temporary workspace.
+
+    Returns the expanded page list and, for every original page, the index of
+    its first output page. The latter keeps native EPUB chapter targets valid.
+    """
+    from PIL import Image
+
+    split_dir = os.path.join(work_dir, "split_spreads")
+    os.makedirs(split_dir, exist_ok=True)
+    expanded = []
+    first_output_indices = []
+
+    for source_index, page_path in enumerate(pages):
+        first_output_indices.append(len(expanded))
+        with Image.open(page_path) as opened:
+            source = normalize_for_output(opened)
+            parts = split_spread_image(source, reading_direction)
+            if len(parts) == 1:
+                expanded.append(page_path)
+                continue
+            for part_index, part in enumerate(parts):
+                output_path = os.path.join(split_dir, f"page_{source_index:06d}_{part_index}.png")
+                part.save(output_path, "PNG", optimize=True)
+                expanded.append(output_path)
+    return expanded, first_output_indices
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Convert manga (image folder / CBZ / EPUB) into CrossPoint Reader format.",
@@ -1422,6 +1464,12 @@ def main():
         choices=("rtl", "ltr"),
         default=None,
         help="Override horizontal panel order. Defaults to rtl for manga and ltr for western layouts.",
+    )
+    parser.add_argument(
+        "--split-spreads",
+        action="store_true",
+        help="Split every landscape source image into left/right portrait pages before panel detection. "
+             "Halves follow the selected reading direction. Use for scans or screenshots containing two pages.",
     )
     parser.add_argument("--max-pages", type=int, help="Only process the first N pages (for testing)")
     parser.add_argument(
@@ -1498,6 +1546,16 @@ def main():
             toc_entries = _extract_epub_native_toc(args.input, pages, work_dir)
             if toc_entries:
                 print(f"Found {len(toc_entries)} chapter(s) in the EPUB's table of contents")
+        if args.split_spreads:
+            original_count = len(pages)
+            pages, first_output_indices = split_spread_pages(pages, work_dir, reading_direction)
+            if toc_entries:
+                toc_entries = [
+                    (first_output_indices[page_index], title)
+                    for page_index, title in toc_entries
+                    if 0 <= page_index < len(first_output_indices)
+                ]
+            print(f"Split landscape spreads: {original_count} source pages became {len(pages)} pages")
         if args.toc_file:
             toc_entries = parse_toc_file(args.toc_file)
             print(f"Using {len(toc_entries)} chapter(s) from --toc-file")
